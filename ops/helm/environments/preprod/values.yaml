@@ -1,0 +1,45 @@
+# Preprod environment values
+
+replicaCount: 1
+
+deployApp: true
+
+image:
+  repository: ghcr.io/your-org/itip-web-backend
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: itip-backend.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+env:
+  OIDC_ISSUER_URI: https://login.microsoftonline.com/<preprod-tenant-id>/v2.0
+  SIE_DM_BASE_URL: http://sie-definition-manager.sie.svc.cluster.local:8080
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.monitoring.svc.cluster.local:4317
+
+resources:
+  requests:
+    cpu: "250m"
+    memory: "512Mi"
+  limits:
+    cpu: "1000m"
+    memory: "1Gi"
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

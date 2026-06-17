@@ -1,0 +1,14 @@
+{{- if .Values.deployApp }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "itip-web-backend.fullname" . }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    app: {{ include "itip-web-backend.fullname" . }}
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: http
+{{- end }}

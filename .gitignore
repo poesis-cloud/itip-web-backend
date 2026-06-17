@@ -1,0 +1,29 @@
+# Maven
+target/
+*.class
+*.jar
+*.war
+*.ear
+
+# IDE
+.idea/
+*.iml
+.eclipse/
+.project
+.classpath
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Spring Boot
+*.log
+logs/
+
+# Local env overrides (never commit secrets)
+.env.dev
+
+# Helm dependency cache
+ops/helm/charts/
+ops/helm/Chart.lock
