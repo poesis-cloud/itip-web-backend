@@ -42,7 +42,7 @@ jobs:
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
 
           run_dependency_check() {
             if [ -n "${NVD_API_KEY:-}" ]; then
@@ -67,12 +67,15 @@ jobs:
           done
 
           echo "Dependency-check failed after retries (likely transient NVD/API issue)."
-          echo "Running a non-blocking dependency-check fallback for report generation."
+          echo "Running a non-blocking dependency-check fallback with local cache only."
           if [ -n "${NVD_API_KEY:-}" ]; then
-            mvn -B org.owasp:dependency-check-maven:check -DnvdApiKey="$NVD_API_KEY" -DfailOnError=false || true
+            mvn -B org.owasp:dependency-check-maven:check -DnvdApiKey="$NVD_API_KEY" -DautoUpdate=false -DfailOnError=false || true
           else
-            mvn -B org.owasp:dependency-check-maven:check -DfailOnError=false || true
+            mvn -B org.owasp:dependency-check-maven:check -DautoUpdate=false -DfailOnError=false || true
           fi
+
+          echo "::warning::OWASP dependency-check could not update NVD data; continuing with Trivy as the blocking security gate."
+          exit 0
       - name: Trivy filesystem scan
         uses: aquasecurity/trivy-action@0.35.0
         with:
