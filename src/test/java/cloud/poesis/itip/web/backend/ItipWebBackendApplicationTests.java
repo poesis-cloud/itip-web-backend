@@ -2,14 +2,10 @@ package cloud.poesis.itip.web.backend;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.ActiveProfiles;
 
+@ActiveProfiles("test")
 @SpringBootTest
-@TestPropertySource(
-    properties = {
-      "spring.security.oauth2.resourceserver.jwt.issuer-uri=",
-      "spring.security.oauth2.resourceserver.jwt.jwk-set-uri=http://localhost:9999/.well-known/jwks.json",
-    })
 class ItipWebBackendApplicationTests {
 
   @Test

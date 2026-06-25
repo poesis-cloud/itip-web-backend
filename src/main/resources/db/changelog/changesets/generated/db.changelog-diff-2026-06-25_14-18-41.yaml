@@ -1,0 +1,29 @@
+databaseChangeLog:
+- changeSet:
+    id: 1782397141239-1
+    author: root (generated)
+    changes:
+    - createTable:
+        columns:
+        - column:
+            constraints:
+              nullable: false
+            name: id
+            type: UUID
+        - column:
+            constraints:
+              nullable: false
+            name: first_name
+            type: VARCHAR(100)
+        - column:
+            constraints:
+              nullable: false
+            name: last_name
+            type: VARCHAR(100)
+        - column:
+            constraints:
+              nullable: false
+            name: username
+            type: VARCHAR(100)
+        tableName: users
+
