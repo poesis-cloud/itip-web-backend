@@ -22,10 +22,7 @@ import org.hibernate.annotations.UuidGenerator;
 @RequiredArgsConstructor
 public class UserEntity {
 
-  @Id
-  @GeneratedValue
-  @UuidGenerator
-  private UUID id;
+  @Id @GeneratedValue @UuidGenerator private UUID id;
 
   @Column(name = "username", nullable = false, unique = true, length = 100)
   @NonNull

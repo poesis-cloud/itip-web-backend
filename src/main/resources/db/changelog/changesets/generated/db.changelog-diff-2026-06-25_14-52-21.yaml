@@ -1,18 +1,17 @@
 databaseChangeLog:
-- changeSet:
-    id: 1782399164250-1
-    author: root (generated)
-    changes:
-    - addPrimaryKey:
-        columnNames: id
-        constraintName: usersPK
-        tableName: users
-- changeSet:
-    id: 1782399164250-2
-    author: root (generated)
-    changes:
-    - addUniqueConstraint:
-        columnNames: username
-        constraintName: UC_USERSUSERNAME_COL
-        tableName: users
-
+  - changeSet:
+      id: 1782399164250-1
+      author: root (generated)
+      changes:
+        - addPrimaryKey:
+            columnNames: id
+            constraintName: usersPK
+            tableName: users
+  - changeSet:
+      id: 1782399164250-2
+      author: root (generated)
+      changes:
+        - addUniqueConstraint:
+            columnNames: username
+            constraintName: UC_USERSUSERNAME_COL
+            tableName: users

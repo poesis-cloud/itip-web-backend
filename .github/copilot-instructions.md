@@ -114,10 +114,10 @@ Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 
 These agents are installed globally via the `software-engineering-team` plugin. Invoke them by name in any chat.
 
-| When | Invoke |
-|---|---|
-| Security review before any merge | `SE: Security` |
-| Architecture decision or structurant PR | `SE: Architect` |
-| CI/CD pipeline, Helm, deployment debug | `SE: DevOps/CI` |
-| Writing/updating API docs, ADRs, README | `SE: Technical Writer` |
+| When                                     | Invoke                        |
+| ---------------------------------------- | ----------------------------- |
+| Security review before any merge         | `SE: Security`                |
+| Architecture decision or structurant PR  | `SE: Architect`               |
+| CI/CD pipeline, Helm, deployment debug   | `SE: DevOps/CI`               |
+| Writing/updating API docs, ADRs, README  | `SE: Technical Writer`        |
 | Authoring GitHub Issues or backlog items | `SE: Product Manager Advisor` |
