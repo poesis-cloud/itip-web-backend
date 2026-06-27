@@ -70,7 +70,7 @@ class AuthControllerTest {
     MockMvc mockMvc = buildMockMvc();
 
     when(authenticationStrategyResolver.resolve(AuthMethod.SAML))
-      .thenThrow(new UnsupportedAuthMethodException("SAML auth is not supported"));
+        .thenThrow(new UnsupportedAuthMethodException("SAML auth is not supported"));
 
     mockMvc
         .perform(

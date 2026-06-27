@@ -52,9 +52,7 @@ public class AuthTokenService {
       String email = claims.getSubject();
       Date expiration = claims.getExpiration();
 
-      return email != null
-          && email.equals(userDetails.getUsername())
-          && expiration != null;
+      return email != null && email.equals(userDetails.getUsername()) && expiration != null;
     } catch (JwtException | IllegalArgumentException exception) {
       return false;
     }

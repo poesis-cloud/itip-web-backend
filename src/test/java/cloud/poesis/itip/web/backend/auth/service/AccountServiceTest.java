@@ -140,14 +140,22 @@ class AccountServiceTest {
     Privilege nullCodePrivilege = Privilege.builder().id(UUID.randomUUID()).code(null).build();
 
     Role roleWithNullPrivilegeAssignments =
-        Role.builder().id(UUID.randomUUID()).name("NULL_PRIV_ASSIGNMENTS").rolePrivilegeAssignments(null).build();
+        Role.builder()
+            .id(UUID.randomUUID())
+            .name("NULL_PRIV_ASSIGNMENTS")
+            .rolePrivilegeAssignments(null)
+            .build();
 
     Role roleWithNullPrivilege =
         Role.builder()
             .id(UUID.randomUUID())
             .name("NULL_PRIVILEGE")
             .rolePrivilegeAssignments(
-                Set.of(RolePrivilegeAssignment.builder().id(UUID.randomUUID()).privilege(null).build()))
+                Set.of(
+                    RolePrivilegeAssignment.builder()
+                        .id(UUID.randomUUID())
+                        .privilege(null)
+                        .build()))
             .build();
 
     Role roleWithNullPrivilegeCode =
@@ -187,12 +195,18 @@ class AccountServiceTest {
                         .id(UUID.randomUUID())
                         .role(roleWithNullPrivilegeAssignments)
                         .build(),
-                    AccountRoleAssignment.builder().id(UUID.randomUUID()).role(roleWithNullPrivilege).build(),
+                    AccountRoleAssignment.builder()
+                        .id(UUID.randomUUID())
+                        .role(roleWithNullPrivilege)
+                        .build(),
                     AccountRoleAssignment.builder()
                         .id(UUID.randomUUID())
                         .role(roleWithNullPrivilegeCode)
                         .build(),
-                    AccountRoleAssignment.builder().id(UUID.randomUUID()).role(roleWithValidPrivilege).build()))
+                    AccountRoleAssignment.builder()
+                        .id(UUID.randomUUID())
+                        .role(roleWithValidPrivilege)
+                        .build()))
             .build();
 
     when(accountRepository.findByEmailWithRolesAndPrivileges("mixed@itip.local"))
@@ -243,81 +257,81 @@ class AccountServiceTest {
     assertThat(userDetails.getAuthorities()).isEmpty();
   }
 
-    @Test
-    void loadUserByUsernameShouldIgnoreExpiredRoleAssignmentsEvenWhenNotRevoked() {
-        Privilege privilege = Privilege.builder().id(UUID.randomUUID()).code("READ_USER").build();
-        Role role =
-                Role.builder()
+  @Test
+  void loadUserByUsernameShouldIgnoreExpiredRoleAssignmentsEvenWhenNotRevoked() {
+    Privilege privilege = Privilege.builder().id(UUID.randomUUID()).code("READ_USER").build();
+    Role role =
+        Role.builder()
+            .id(UUID.randomUUID())
+            .name("EXPIRED_ROLE")
+            .rolePrivilegeAssignments(
+                Set.of(
+                    RolePrivilegeAssignment.builder()
                         .id(UUID.randomUUID())
-                        .name("EXPIRED_ROLE")
-                        .rolePrivilegeAssignments(
-                                Set.of(
-                                        RolePrivilegeAssignment.builder()
-                                                .id(UUID.randomUUID())
-                                                .privilege(privilege)
-                                                .build()))
-                        .build();
+                        .privilege(privilege)
+                        .build()))
+            .build();
 
-        Account account =
-                Account.builder()
+    Account account =
+        Account.builder()
+            .id(UUID.randomUUID())
+            .email("expired@itip.local")
+            .passwordHash("hashed-password")
+            .enabled(true)
+            .accountRoleAssignments(
+                Set.of(
+                    AccountRoleAssignment.builder()
                         .id(UUID.randomUUID())
-                        .email("expired@itip.local")
-                        .passwordHash("hashed-password")
-                        .enabled(true)
-                        .accountRoleAssignments(
-                                Set.of(
-                                        AccountRoleAssignment.builder()
-                                                .id(UUID.randomUUID())
-                                                .role(role)
-                                                .expiresAt(Instant.now().minusSeconds(10))
-                                                .build()))
-                        .build();
+                        .role(role)
+                        .expiresAt(Instant.now().minusSeconds(10))
+                        .build()))
+            .build();
 
-        when(accountRepository.findByEmailWithRolesAndPrivileges("expired@itip.local"))
-                .thenReturn(java.util.Optional.of(account));
+    when(accountRepository.findByEmailWithRolesAndPrivileges("expired@itip.local"))
+        .thenReturn(java.util.Optional.of(account));
 
-        UserDetails userDetails = accountService.loadUserByUsername("expired@itip.local");
+    UserDetails userDetails = accountService.loadUserByUsername("expired@itip.local");
 
-        assertThat(userDetails.getAuthorities()).isEmpty();
-    }
+    assertThat(userDetails.getAuthorities()).isEmpty();
+  }
 
-      @Test
-      void loadUserByUsernameShouldAcceptFutureExpiringRoleAssignments() {
-        Privilege privilege = Privilege.builder().id(UUID.randomUUID()).code("READ_USER").build();
-        Role role =
-            Role.builder()
-                .id(UUID.randomUUID())
-                .name("FUTURE_ROLE")
-                .rolePrivilegeAssignments(
-                    Set.of(
-                        RolePrivilegeAssignment.builder()
-                            .id(UUID.randomUUID())
-                            .privilege(privilege)
-                            .build()))
-                .build();
+  @Test
+  void loadUserByUsernameShouldAcceptFutureExpiringRoleAssignments() {
+    Privilege privilege = Privilege.builder().id(UUID.randomUUID()).code("READ_USER").build();
+    Role role =
+        Role.builder()
+            .id(UUID.randomUUID())
+            .name("FUTURE_ROLE")
+            .rolePrivilegeAssignments(
+                Set.of(
+                    RolePrivilegeAssignment.builder()
+                        .id(UUID.randomUUID())
+                        .privilege(privilege)
+                        .build()))
+            .build();
 
-        Account account =
-            Account.builder()
-                .id(UUID.randomUUID())
-                .email("future@itip.local")
-                .passwordHash("hashed-password")
-                .enabled(true)
-                .accountRoleAssignments(
-                    Set.of(
-                        AccountRoleAssignment.builder()
-                            .id(UUID.randomUUID())
-                            .role(role)
-                            .expiresAt(Instant.now().plusSeconds(300))
-                            .build()))
-                .build();
+    Account account =
+        Account.builder()
+            .id(UUID.randomUUID())
+            .email("future@itip.local")
+            .passwordHash("hashed-password")
+            .enabled(true)
+            .accountRoleAssignments(
+                Set.of(
+                    AccountRoleAssignment.builder()
+                        .id(UUID.randomUUID())
+                        .role(role)
+                        .expiresAt(Instant.now().plusSeconds(300))
+                        .build()))
+            .build();
 
-        when(accountRepository.findByEmailWithRolesAndPrivileges("future@itip.local"))
-            .thenReturn(java.util.Optional.of(account));
+    when(accountRepository.findByEmailWithRolesAndPrivileges("future@itip.local"))
+        .thenReturn(java.util.Optional.of(account));
 
-        UserDetails userDetails = accountService.loadUserByUsername("future@itip.local");
+    UserDetails userDetails = accountService.loadUserByUsername("future@itip.local");
 
-        assertThat(userDetails.getAuthorities())
-            .extracting("authority")
-            .containsExactlyInAnyOrder("READ_USER");
-      }
+    assertThat(userDetails.getAuthorities())
+        .extracting("authority")
+        .containsExactlyInAnyOrder("READ_USER");
+  }
 }

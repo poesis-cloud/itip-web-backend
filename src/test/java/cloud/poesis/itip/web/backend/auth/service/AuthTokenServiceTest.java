@@ -80,7 +80,8 @@ class AuthTokenServiceTest {
   void extractEmailShouldThrowForMalformedToken() {
     AuthTokenService service = new AuthTokenService(SECRET, 3600000);
 
-    assertThatThrownBy(() -> service.extractEmail("not-a-jwt")).isInstanceOf(RuntimeException.class);
+    assertThatThrownBy(() -> service.extractEmail("not-a-jwt"))
+        .isInstanceOf(RuntimeException.class);
   }
 
   @Test
