@@ -48,16 +48,16 @@ public class AuthTokenService {
 
   public boolean isTokenValid(String token, UserDetails userDetails) {
     try {
-      String email = extractEmail(token);
-      return email.equals(userDetails.getUsername()) && !isTokenExpired(token);
+      Claims claims = extractAllClaims(token);
+      String email = claims.getSubject();
+      Date expiration = claims.getExpiration();
+
+      return email != null
+          && email.equals(userDetails.getUsername())
+          && expiration != null;
     } catch (JwtException | IllegalArgumentException exception) {
       return false;
     }
-  }
-
-  private boolean isTokenExpired(String token) {
-    Date expiration = extractAllClaims(token).getExpiration();
-    return expiration.before(new Date());
   }
 
   private Claims extractAllClaims(String token) {

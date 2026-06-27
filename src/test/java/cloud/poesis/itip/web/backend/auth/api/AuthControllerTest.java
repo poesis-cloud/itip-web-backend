@@ -10,12 +10,14 @@ import cloud.poesis.itip.web.backend.auth.model.AuthMethod;
 import cloud.poesis.itip.web.backend.auth.model.AuthenticationResult;
 import cloud.poesis.itip.web.backend.auth.strategy.AuthenticationStrategy;
 import cloud.poesis.itip.web.backend.auth.strategy.AuthenticationStrategyResolver;
+import cloud.poesis.itip.web.backend.auth.strategy.UnsupportedAuthMethodException;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -28,9 +30,13 @@ class AuthControllerTest {
 
   @InjectMocks private AuthController authController;
 
+  private MockMvc buildMockMvc() {
+    return MockMvcBuilders.standaloneSetup(authController).build();
+  }
+
   @Test
   void loginShouldReturnJwtResponse() throws Exception {
-    MockMvc mockMvc = MockMvcBuilders.standaloneSetup(authController).build();
+    MockMvc mockMvc = buildMockMvc();
 
     when(authenticationStrategyResolver.resolve(AuthMethod.LOCAL))
         .thenReturn(authenticationStrategy);
@@ -57,5 +63,71 @@ class AuthControllerTest {
         .andExpect(jsonPath("$.token").value("jwt-value"))
         .andExpect(jsonPath("$.email").value("john.doe@itip.local"))
         .andExpect(jsonPath("$.expiresAt").isNumber());
+  }
+
+  @Test
+  void loginShouldReturnBadRequestWhenAuthMethodIsUnsupported() throws Exception {
+    MockMvc mockMvc = buildMockMvc();
+
+    when(authenticationStrategyResolver.resolve(AuthMethod.SAML))
+      .thenThrow(new UnsupportedAuthMethodException("SAML auth is not supported"));
+
+    mockMvc
+        .perform(
+            post("/api/auth/login")
+                .contentType("application/json")
+                .content(
+                    """
+                    {
+                      "email": "john.doe@itip.local",
+                      "password": "password",
+                      "authMethod": "SAML"
+                    }
+                    """))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void loginShouldReturnUnauthorizedWhenAuthenticationFails() throws Exception {
+    MockMvc mockMvc = buildMockMvc();
+
+    when(authenticationStrategyResolver.resolve(AuthMethod.LOCAL))
+        .thenReturn(authenticationStrategy);
+    when(authenticationStrategy.authenticate(any()))
+        .thenThrow(new BadCredentialsException("invalid credentials"));
+
+    mockMvc
+        .perform(
+            post("/api/auth/login")
+                .contentType("application/json")
+                .content(
+                    """
+                    {
+                      "email": "john.doe@itip.local",
+                      "password": "wrong"
+                    }
+                    """))
+        .andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void loginShouldReturnInternalServerErrorOnUnexpectedRuntimeException() throws Exception {
+    MockMvc mockMvc = buildMockMvc();
+
+    when(authenticationStrategyResolver.resolve(AuthMethod.LOCAL))
+        .thenThrow(new RuntimeException("unexpected error"));
+
+    mockMvc
+        .perform(
+            post("/api/auth/login")
+                .contentType("application/json")
+                .content(
+                    """
+                    {
+                      "email": "john.doe@itip.local",
+                      "password": "password"
+                    }
+                    """))
+        .andExpect(status().isInternalServerError());
   }
 }
