@@ -1,68 +1,66 @@
 package cloud.poesis.itip.web.backend.config;
 
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.util.Objects;
+import cloud.poesis.itip.web.backend.auth.model.AuthMethod;
+import cloud.poesis.itip.web.backend.auth.model.AuthenticationResult;
+import cloud.poesis.itip.web.backend.auth.strategy.AuthenticationStrategy;
+import cloud.poesis.itip.web.backend.auth.strategy.AuthenticationStrategyResolver;
+import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RestController;
 
 @ActiveProfiles("test")
 @SpringBootTest
 @AutoConfigureMockMvc
 class SecurityConfigTest {
 
-  private final MockMvc mockMvc;
+  @Autowired private MockMvc mockMvc;
 
-  @Autowired
-  SecurityConfigTest(MockMvc mockMvc) {
-    this.mockMvc = mockMvc;
-  }
+  @MockitoBean private AuthenticationStrategyResolver authenticationStrategyResolver;
 
-  @Test
-  void defaultSecurityRequiresAuthenticationForApplicationEndpoints() throws Exception {
-    mockMvc.perform(get("/security-test/protected")).andExpect(status().isUnauthorized());
-  }
+  @MockitoBean private AuthenticationStrategy authenticationStrategy;
 
   @Test
-  void defaultSecurityAllowsJwtForApplicationEndpoints() throws Exception {
+  void loginEndpointShouldBeAccessibleWithoutAuthentication() throws Exception {
+    when(authenticationStrategyResolver.resolve(AuthMethod.LOCAL)).thenReturn(authenticationStrategy);
+    when(authenticationStrategy.authenticate(any()))
+        .thenReturn(
+            AuthenticationResult.builder()
+                .token("jwt-token")
+                .email("security@itip.local")
+                .expiresAt(Instant.parse("2030-01-01T00:00:00Z"))
+                .build());
+
     mockMvc
-        .perform(get("/security-test/protected").with(Objects.requireNonNull(jwt())))
-        .andExpect(status().isOk())
-        .andExpect(content().string("protected"));
+        .perform(
+            post("/api/auth/login")
+                .contentType("application/json")
+                .content("""
+                    {
+                      "email": "security@itip.local",
+                      "password": "password"
+                    }
+                    """))
+        .andExpect(status().isOk());
   }
 
   @Test
-  void defaultSecurityKeepsHealthEndpointPublic() throws Exception {
-    mockMvc.perform(get("/actuator/health")).andExpect(status().isOk());
+  void nonAuthEndpointsShouldRequireAuthentication() throws Exception {
+    mockMvc.perform(get("/api/private")).andExpect(status().is4xxClientError());
   }
 
-  @TestConfiguration
-  static class TestSecurityBeans {
-
-    @Bean
-    JwtDecoder jwtDecoder() {
-      return token -> null;
-    }
-
-    @RestController
-    static class ProtectedEndpoint {
-
-      @GetMapping("/security-test/protected")
-      String protectedEndpoint() {
-        return "protected";
-      }
-    }
+  @Test
+  void healthEndpointShouldRemainPublic() throws Exception {
+    mockMvc.perform(get("/actuator/health")).andExpect(status().isOk());
   }
 }
