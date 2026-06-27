@@ -2,6 +2,6 @@ databaseChangeLog:
   - includeAll:
       path: changesets/curated
       relativeToChangelogFile: true
-  - include:
-      file: changes/001_insert_rbac_privileges.yaml
+  - includeAll:
+      path: changes
       relativeToChangelogFile: true

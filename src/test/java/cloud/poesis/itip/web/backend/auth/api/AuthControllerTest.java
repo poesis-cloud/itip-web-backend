@@ -32,7 +32,8 @@ class AuthControllerTest {
   void loginShouldReturnJwtResponse() throws Exception {
     MockMvc mockMvc = MockMvcBuilders.standaloneSetup(authController).build();
 
-    when(authenticationStrategyResolver.resolve(AuthMethod.LOCAL)).thenReturn(authenticationStrategy);
+    when(authenticationStrategyResolver.resolve(AuthMethod.LOCAL))
+        .thenReturn(authenticationStrategy);
     when(authenticationStrategy.authenticate(any()))
         .thenReturn(
             AuthenticationResult.builder()
@@ -45,7 +46,8 @@ class AuthControllerTest {
         .perform(
             post("/api/auth/login")
                 .contentType("application/json")
-                .content("""
+                .content(
+                    """
                     {
                       "email": "john.doe@itip.local",
                       "password": "password"

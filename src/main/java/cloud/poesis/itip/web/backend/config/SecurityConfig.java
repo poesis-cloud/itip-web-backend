@@ -9,8 +9,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -25,7 +25,8 @@ public class SecurityConfig {
   private final JwtAuthenticationFilter jwtAuthenticationFilter;
   private final AccountService accountService;
 
-  public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter, AccountService accountService) {
+  public SecurityConfig(
+      JwtAuthenticationFilter jwtAuthenticationFilter, AccountService accountService) {
     this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     this.accountService = accountService;
   }
@@ -52,7 +53,14 @@ public class SecurityConfig {
         .authorizeHttpRequests(
             requests ->
                 requests
-                    .requestMatchers("/actuator/health", "/actuator/info", "/api/auth/**")
+                    .requestMatchers(
+                        "/api/auth/**",
+                        "/v3/api-docs/**",
+                        "/swagger-ui/**",
+                        "/swagger-ui.html",
+                        "/actuator/health",
+                "/actuator/info",
+                        "/error")
                     .permitAll()
                     .anyRequest()
                     .authenticated())

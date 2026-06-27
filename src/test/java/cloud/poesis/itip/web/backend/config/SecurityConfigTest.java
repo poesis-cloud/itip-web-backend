@@ -32,7 +32,8 @@ class SecurityConfigTest {
 
   @Test
   void loginEndpointShouldBeAccessibleWithoutAuthentication() throws Exception {
-    when(authenticationStrategyResolver.resolve(AuthMethod.LOCAL)).thenReturn(authenticationStrategy);
+    when(authenticationStrategyResolver.resolve(AuthMethod.LOCAL))
+        .thenReturn(authenticationStrategy);
     when(authenticationStrategy.authenticate(any()))
         .thenReturn(
             AuthenticationResult.builder()
@@ -45,7 +46,8 @@ class SecurityConfigTest {
         .perform(
             post("/api/auth/login")
                 .contentType("application/json")
-                .content("""
+                .content(
+                    """
                     {
                       "email": "security@itip.local",
                       "password": "password"
@@ -61,6 +63,16 @@ class SecurityConfigTest {
 
   @Test
   void healthEndpointShouldRemainPublic() throws Exception {
+    mockMvc.perform(get("/actuator/health")).andExpect(status().isOk());
+  }
+
+  @Test
+  void openApiDocsShouldBeAccessibleWithoutAuthentication() throws Exception {
+    mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk());
+  }
+
+  @Test
+  void healthEndpointShouldBeAccessibleWithoutAuthentication() throws Exception {
     mockMvc.perform(get("/actuator/health")).andExpect(status().isOk());
   }
 }

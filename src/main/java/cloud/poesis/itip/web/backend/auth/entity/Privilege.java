@@ -14,18 +14,21 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Builder.Default;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.UuidGenerator;
 
 @Entity
 @Table(name = "privilege")
 @Data
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class Privilege {
 
   @Id
+  @EqualsAndHashCode.Include
   @GeneratedValue
   @UuidGenerator
   @Column(name = "id", nullable = false, updatable = false)

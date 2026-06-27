@@ -32,12 +32,16 @@ class AccountServiceTest {
   void loadUserByUsernameShouldReturnUserDetailsWithOnlyActiveAuthorities() {
     Privilege activePrivilege = Privilege.builder().id(UUID.randomUUID()).code("READ_USER").build();
     RolePrivilegeAssignment activeRolePrivilegeAssignment =
-        RolePrivilegeAssignment.builder().privilege(activePrivilege).build();
+        RolePrivilegeAssignment.builder()
+            .id(UUID.randomUUID())
+            .privilege(activePrivilege)
+            .build();
 
     Privilege revokedPrivilege =
         Privilege.builder().id(UUID.randomUUID()).code("DELETE_USER").build();
     RolePrivilegeAssignment revokedRolePrivilegeAssignment =
         RolePrivilegeAssignment.builder()
+            .id(UUID.randomUUID())
             .privilege(revokedPrivilege)
             .revokedAt(Instant.now())
             .build();
@@ -46,14 +50,16 @@ class AccountServiceTest {
         Role.builder()
             .id(UUID.randomUUID())
             .name("ADMIN")
-            .rolePrivilegeAssignments(Set.of(activeRolePrivilegeAssignment, revokedRolePrivilegeAssignment))
+            .rolePrivilegeAssignments(
+                Set.of(activeRolePrivilegeAssignment, revokedRolePrivilegeAssignment))
             .build();
 
     AccountRoleAssignment activeRoleAssignment =
-        AccountRoleAssignment.builder().role(activeRole).build();
+        AccountRoleAssignment.builder().id(UUID.randomUUID()).role(activeRole).build();
 
     AccountRoleAssignment expiredRoleAssignment =
         AccountRoleAssignment.builder()
+            .id(UUID.randomUUID())
             .role(activeRole)
             .expiresAt(Instant.now().minusSeconds(300))
             .build();
@@ -102,7 +108,8 @@ class AccountServiceTest {
 
   @Test
   void loadAccountByEmailShouldThrowWhenMissing() {
-    when(accountRepository.findByEmail("missing@itip.local")).thenReturn(java.util.Optional.empty());
+    when(accountRepository.findByEmail("missing@itip.local"))
+        .thenReturn(java.util.Optional.empty());
 
     assertThatThrownBy(() -> accountService.loadAccountByEmail("missing@itip.local"))
         .isInstanceOf(UsernameNotFoundException.class)

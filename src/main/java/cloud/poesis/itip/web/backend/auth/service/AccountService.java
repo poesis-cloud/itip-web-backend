@@ -1,8 +1,10 @@
 package cloud.poesis.itip.web.backend.auth.service;
 
 import cloud.poesis.itip.web.backend.auth.entity.Account;
+import cloud.poesis.itip.web.backend.auth.entity.AccountRoleAssignment;
 import cloud.poesis.itip.web.backend.auth.repository.AccountRepository;
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -29,8 +31,9 @@ public class AccountService implements UserDetailsService {
             .orElseThrow(() -> new UsernameNotFoundException("Account not found: " + email));
 
     Instant now = Instant.now();
+    Set<AccountRoleAssignment> roleAssignments = snapshot(account.getAccountRoleAssignments());
     Set<GrantedAuthority> authorities =
-        account.getAccountRoleAssignments().stream()
+        roleAssignments.stream()
             .filter(
                 assignment ->
                     assignment.getRevokedAt() == null
@@ -38,7 +41,7 @@ public class AccountService implements UserDetailsService {
                             || assignment.getExpiresAt().isAfter(now)))
             .map(assignment -> assignment.getRole())
             .filter(Objects::nonNull)
-            .flatMap(role -> role.getRolePrivilegeAssignments().stream())
+            .flatMap(role -> snapshot(role.getRolePrivilegeAssignments()).stream())
             .filter(rolePrivilegeAssignment -> rolePrivilegeAssignment.getRevokedAt() == null)
             .map(rolePrivilegeAssignment -> rolePrivilegeAssignment.getPrivilege())
             .filter(Objects::nonNull)
@@ -58,5 +61,9 @@ public class AccountService implements UserDetailsService {
     return accountRepository
         .findByEmail(email)
         .orElseThrow(() -> new UsernameNotFoundException("Account not found: " + email));
+  }
+
+  private static <T> Set<T> snapshot(Set<T> source) {
+    return source == null ? Set.of() : new HashSet<>(source);
   }
 }

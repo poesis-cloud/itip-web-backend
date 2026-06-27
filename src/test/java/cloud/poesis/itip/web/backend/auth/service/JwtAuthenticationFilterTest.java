@@ -50,7 +50,8 @@ class JwtAuthenticationFilterTest {
     MockHttpServletResponse response = new MockHttpServletResponse();
     MockFilterChain chain = new MockFilterChain();
 
-    when(authTokenService.extractEmail("invalid-token")).thenThrow(new RuntimeException("bad token"));
+    when(authTokenService.extractEmail("invalid-token"))
+        .thenThrow(new RuntimeException("bad token"));
 
     jwtAuthenticationFilter.doFilter(request, response, chain);
 
