@@ -20,8 +20,29 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
       LEFT JOIN FETCH r.rolePrivilegeAssignments rpa
       LEFT JOIN FETCH rpa.privilege p
       WHERE a.email = :email
-        AND (ara IS NULL OR (ara.revokedAt IS NULL AND (ara.expiresAt IS NULL OR ara.expiresAt > CURRENT_TIMESTAMP)))
-        AND (rpa IS NULL OR rpa.revokedAt IS NULL)
+        AND (
+          ara IS NULL
+          OR (ara.revokedAt IS NULL AND (ara.expiresAt IS NULL OR ara.expiresAt > CURRENT_TIMESTAMP))
+          OR NOT EXISTS (
+            SELECT 1
+            FROM AccountRoleAssignment araActive
+            WHERE araActive.account = a
+              AND araActive.revokedAt IS NULL
+              AND (araActive.expiresAt IS NULL OR araActive.expiresAt > CURRENT_TIMESTAMP)
+          )
+        )
+        AND (
+          ara IS NULL
+          OR ara.revokedAt IS NOT NULL
+          OR (ara.expiresAt IS NOT NULL AND ara.expiresAt <= CURRENT_TIMESTAMP)
+          OR (rpa IS NULL OR rpa.revokedAt IS NULL)
+          OR NOT EXISTS (
+            SELECT 1
+            FROM RolePrivilegeAssignment rpaActive
+            WHERE rpaActive.role = ara.role
+              AND rpaActive.revokedAt IS NULL
+          )
+        )
       """)
   Optional<Account> findByEmailWithRolesAndPrivileges(@Param("email") String email);
 }

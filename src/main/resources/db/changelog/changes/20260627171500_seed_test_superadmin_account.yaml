@@ -3,10 +3,13 @@ databaseChangeLog:
       id: 20260627171500-001-create-test-superadmin-role
       author: copilot
       preConditions:
-        onFail: MARK_RAN
-        sqlCheck:
-          expectedResult: "0"
-          sql: SELECT COUNT(1) FROM role WHERE name = 'TEST_SUPERADMIN'
+        - onFail: MARK_RAN
+        - changeLogPropertyDefined:
+            property: enable.test.superadmin.seed
+            value: "true"
+        - sqlCheck:
+            expectedResult: "0"
+            sql: SELECT COUNT(1) FROM role WHERE name = 'TEST_SUPERADMIN'
       changes:
         - insert:
             tableName: role
@@ -31,10 +34,13 @@ databaseChangeLog:
       id: 20260627171500-002-create-test-superadmin-account
       author: copilot
       preConditions:
-        onFail: MARK_RAN
-        sqlCheck:
-          expectedResult: "0"
-          sql: SELECT COUNT(1) FROM account WHERE email = 'test.superadmin@itip.local'
+        - onFail: MARK_RAN
+        - changeLogPropertyDefined:
+            property: enable.test.superadmin.seed
+            value: "true"
+        - sqlCheck:
+            expectedResult: "0"
+            sql: SELECT COUNT(1) FROM account WHERE email = 'test.superadmin@itip.local'
       changes:
         - insert:
             tableName: account
@@ -64,6 +70,11 @@ databaseChangeLog:
   - changeSet:
       id: 20260627171500-003-assign-all-privileges-to-test-superadmin-role
       author: copilot
+      preConditions:
+        - onFail: MARK_RAN
+        - changeLogPropertyDefined:
+            property: enable.test.superadmin.seed
+            value: "true"
       changes:
         - sql:
             splitStatements: false
@@ -84,6 +95,11 @@ databaseChangeLog:
   - changeSet:
       id: 20260627171500-004-assign-test-superadmin-role-to-account
       author: copilot
+      preConditions:
+        - onFail: MARK_RAN
+        - changeLogPropertyDefined:
+            property: enable.test.superadmin.seed
+            value: "true"
       changes:
         - sql:
             splitStatements: false

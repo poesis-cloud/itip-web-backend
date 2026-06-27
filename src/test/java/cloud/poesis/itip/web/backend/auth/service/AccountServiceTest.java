@@ -32,10 +32,7 @@ class AccountServiceTest {
   void loadUserByUsernameShouldReturnUserDetailsWithOnlyActiveAuthorities() {
     Privilege activePrivilege = Privilege.builder().id(UUID.randomUUID()).code("READ_USER").build();
     RolePrivilegeAssignment activeRolePrivilegeAssignment =
-        RolePrivilegeAssignment.builder()
-            .id(UUID.randomUUID())
-            .privilege(activePrivilege)
-            .build();
+        RolePrivilegeAssignment.builder().id(UUID.randomUUID()).privilege(activePrivilege).build();
 
     Privilege revokedPrivilege =
         Privilege.builder().id(UUID.randomUUID()).code("DELETE_USER").build();

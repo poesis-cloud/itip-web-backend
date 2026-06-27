@@ -3,6 +3,7 @@ package cloud.poesis.itip.web.backend.auth.entity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
+import jakarta.persistence.ForeignKey;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
@@ -12,15 +13,17 @@ import java.time.Instant;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
 @Entity
 @Table(name = "role_privilege_assignment")
-@Data
+@Getter
+@Setter
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Builder
 @NoArgsConstructor
@@ -35,15 +38,24 @@ public class RolePrivilegeAssignment {
   private UUID id;
 
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "role_id", nullable = false)
+  @JoinColumn(
+      name = "role_id",
+      nullable = false,
+      foreignKey = @ForeignKey(name = "fk_role_privilege_assignment_role"))
   private Role role;
 
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "privilege_id", nullable = false)
+  @JoinColumn(
+      name = "privilege_id",
+      nullable = false,
+      foreignKey = @ForeignKey(name = "fk_role_privilege_assignment_privilege"))
   private Privilege privilege;
 
   @ManyToOne(fetch = FetchType.LAZY, optional = true)
-  @JoinColumn(name = "assigned_by", nullable = true)
+  @JoinColumn(
+      name = "assigned_by",
+      nullable = true,
+      foreignKey = @ForeignKey(name = "fk_role_privilege_assignment_assigned_by"))
   private Account assignedBy;
 
   @CreationTimestamp

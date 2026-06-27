@@ -1,0 +1,176 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20260627221500-000-precheck-role-privilege-active-duplicates
+      author: copilot
+      preConditions:
+        onFail: HALT
+        sqlCheck:
+          expectedResult: "0"
+          sql: |
+            SELECT COUNT(1)
+            FROM (
+              SELECT role_id, privilege_id
+              FROM role_privilege_assignment
+              WHERE revoked_at IS NULL
+              GROUP BY role_id, privilege_id
+              HAVING COUNT(*) > 1
+            ) duplicates;
+      changes:
+        - sql:
+            sql: SELECT 1;
+
+  - changeSet:
+      id: 20260627221500-001-role-privilege-drop-broad-unique
+      author: copilot
+      preConditions:
+        onFail: MARK_RAN
+        uniqueConstraintExists:
+          tableName: role_privilege_assignment
+          constraintName: uq_role_privilege_assignment_role_privilege
+      changes:
+        - dropUniqueConstraint:
+            tableName: role_privilege_assignment
+            constraintName: uq_role_privilege_assignment_role_privilege
+
+  - changeSet:
+      id: 20260627221500-002-precheck-account-role-orphans
+      author: copilot
+      preConditions:
+        onFail: HALT
+        sqlCheck:
+          expectedResult: "0"
+          sql: |
+            SELECT COUNT(1)
+            FROM account_role_assignment ara
+            LEFT JOIN account a ON a.id = ara.account_id
+            LEFT JOIN role r ON r.id = ara.role_id
+            LEFT JOIN account ab ON ab.id = ara.assigned_by
+            WHERE a.id IS NULL
+               OR r.id IS NULL
+               OR (ara.assigned_by IS NOT NULL AND ab.id IS NULL);
+      changes:
+        - sql:
+            sql: SELECT 1;
+
+  - changeSet:
+      id: 20260627221500-003-precheck-role-privilege-orphans
+      author: copilot
+      preConditions:
+        onFail: HALT
+        sqlCheck:
+          expectedResult: "0"
+          sql: |
+            SELECT COUNT(1)
+            FROM role_privilege_assignment rpa
+            LEFT JOIN role r ON r.id = rpa.role_id
+            LEFT JOIN privilege p ON p.id = rpa.privilege_id
+            LEFT JOIN account ab ON ab.id = rpa.assigned_by
+            WHERE r.id IS NULL
+               OR p.id IS NULL
+               OR (rpa.assigned_by IS NOT NULL AND ab.id IS NULL);
+      changes:
+        - sql:
+            sql: SELECT 1;
+
+  - changeSet:
+      id: 20260627221500-004-account-role-fks
+      author: copilot
+      changes:
+        - addForeignKeyConstraint:
+            baseTableName: account_role_assignment
+            baseColumnNames: account_id
+            referencedTableName: account
+            referencedColumnNames: id
+            constraintName: fk_account_role_assignment_account
+            onDelete: RESTRICT
+        - addForeignKeyConstraint:
+            baseTableName: account_role_assignment
+            baseColumnNames: role_id
+            referencedTableName: role
+            referencedColumnNames: id
+            constraintName: fk_account_role_assignment_role
+            onDelete: RESTRICT
+        - addForeignKeyConstraint:
+            baseTableName: account_role_assignment
+            baseColumnNames: assigned_by
+            referencedTableName: account
+            referencedColumnNames: id
+            constraintName: fk_account_role_assignment_assigned_by
+            onDelete: RESTRICT
+
+  - changeSet:
+      id: 20260627221500-005-role-privilege-fks
+      author: copilot
+      changes:
+        - addForeignKeyConstraint:
+            baseTableName: role_privilege_assignment
+            baseColumnNames: role_id
+            referencedTableName: role
+            referencedColumnNames: id
+            constraintName: fk_role_privilege_assignment_role
+            onDelete: RESTRICT
+        - addForeignKeyConstraint:
+            baseTableName: role_privilege_assignment
+            baseColumnNames: privilege_id
+            referencedTableName: privilege
+            referencedColumnNames: id
+            constraintName: fk_role_privilege_assignment_privilege
+            onDelete: RESTRICT
+        - addForeignKeyConstraint:
+            baseTableName: role_privilege_assignment
+            baseColumnNames: assigned_by
+            referencedTableName: account
+            referencedColumnNames: id
+            constraintName: fk_role_privilege_assignment_assigned_by
+            onDelete: RESTRICT
+
+  - changeSet:
+      id: 20260627221500-006-precheck-account-role-active-duplicates
+      author: copilot
+      dbms: postgresql
+      preConditions:
+        onFail: HALT
+        sqlCheck:
+          expectedResult: "0"
+          sql: |
+            SELECT COUNT(1)
+            FROM (
+              SELECT account_id, role_id
+              FROM account_role_assignment
+              WHERE revoked_at IS NULL
+                AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+              GROUP BY account_id, role_id
+              HAVING COUNT(*) > 1
+            ) duplicates;
+      changes:
+        - sql:
+            sql: SELECT 1;
+
+  - changeSet:
+      id: 20260627221500-007-account-role-active-unique-postgres
+      author: copilot
+      dbms: postgresql
+      changes:
+        - sql:
+            sql: |
+              CREATE UNIQUE INDEX IF NOT EXISTS uq_account_role_assignment_active
+              ON account_role_assignment (account_id, role_id)
+              WHERE revoked_at IS NULL
+                AND expires_at IS NULL;
+      rollback:
+        - sql:
+            sql: DROP INDEX IF EXISTS uq_account_role_assignment_active;
+
+  - changeSet:
+      id: 20260627221500-008-role-privilege-active-unique-postgres
+      author: copilot
+      dbms: postgresql
+      changes:
+        - sql:
+            sql: |
+              CREATE UNIQUE INDEX IF NOT EXISTS uq_role_privilege_assignment_active
+              ON role_privilege_assignment (role_id, privilege_id)
+              WHERE revoked_at IS NULL;
+      rollback:
+        - sql:
+            sql: DROP INDEX IF EXISTS uq_role_privilege_assignment_active;

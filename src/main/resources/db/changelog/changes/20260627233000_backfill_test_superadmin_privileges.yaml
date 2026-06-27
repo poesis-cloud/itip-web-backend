@@ -1,0 +1,29 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20260627233000-001-backfill-test-superadmin-privileges
+      author: copilot
+      preConditions:
+        - onFail: MARK_RAN
+        - changeLogPropertyDefined:
+            property: enable.test.superadmin.seed
+            value: "true"
+        - sqlCheck:
+            expectedResult: "1"
+            sql: SELECT COUNT(1) FROM role WHERE name = 'TEST_SUPERADMIN'
+      changes:
+        - sql:
+            splitStatements: false
+            stripComments: true
+            sql: |
+              INSERT INTO role_privilege_assignment (id, role_id, privilege_id, assigned_by, assigned_at, revoked_at)
+              SELECT gen_random_uuid(), r.id, p.id, NULL, CURRENT_TIMESTAMP, NULL
+              FROM role r
+              CROSS JOIN privilege p
+              WHERE r.name = 'TEST_SUPERADMIN'
+                AND NOT EXISTS (
+                  SELECT 1
+                  FROM role_privilege_assignment rpa
+                  WHERE rpa.role_id = r.id
+                    AND rpa.privilege_id = p.id
+                    AND rpa.revoked_at IS NULL
+                );
