@@ -22,10 +22,12 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
+  private final JwtAuthenticationFilter jwtAuthenticationFilter;
   private final AccountService accountService;
 
   public SecurityConfig(
       JwtAuthenticationFilter jwtAuthenticationFilter, AccountService accountService) {
+    this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     this.accountService = accountService;
   }
 
@@ -57,7 +59,7 @@ public class SecurityConfig {
                         "/swagger-ui/**",
                         "/swagger-ui.html",
                         "/actuator/health",
-                "/actuator/info",
+                        "/actuator/info",
                         "/error")
                     .permitAll()
                     .anyRequest()
