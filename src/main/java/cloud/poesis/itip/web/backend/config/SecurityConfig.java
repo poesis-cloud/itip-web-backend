@@ -22,19 +22,17 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
-  private final JwtAuthenticationFilter jwtAuthenticationFilter;
   private final AccountService accountService;
 
-  public SecurityConfig(
-      JwtAuthenticationFilter jwtAuthenticationFilter, AccountService accountService) {
-    this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+  public SecurityConfig(AccountService accountService) {
     this.accountService = accountService;
   }
 
   @Bean
   @Profile("local")
   @ConditionalOnProperty(prefix = "itip.security", name = "permit-all", havingValue = "true")
-  SecurityFilterChain localPermissiveSecurityFilterChain(HttpSecurity http) throws Exception {
+  SecurityFilterChain localPermissiveSecurityFilterChain(
+      HttpSecurity http, JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
     return http.csrf(csrf -> csrf.disable())
         .sessionManagement(
             session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -46,7 +44,8 @@ public class SecurityConfig {
 
   @Bean
   @ConditionalOnMissingBean(SecurityFilterChain.class)
-  SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+  SecurityFilterChain securityFilterChain(
+      HttpSecurity http, JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
     return http.csrf(csrf -> csrf.disable())
         .sessionManagement(
             session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

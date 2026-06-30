@@ -63,5 +63,5 @@ public class RolePrivilegeAssignment {
   private Instant assignedAt;
 
   @Column(name = "revoked_at", nullable = true)
-    private Instant unassignedAt;
+  private Instant unassignedAt;
 }

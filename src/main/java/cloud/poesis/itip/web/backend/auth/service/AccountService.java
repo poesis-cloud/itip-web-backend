@@ -36,13 +36,13 @@ public class AccountService implements UserDetailsService {
         roleAssignments.stream()
             .filter(
                 assignment ->
-              assignment.getUnassignedAt() == null
+                    assignment.getUnassignedAt() == null
                         && (assignment.getExpiresAt() == null
                             || assignment.getExpiresAt().isAfter(now)))
             .map(assignment -> assignment.getRole())
             .filter(Objects::nonNull)
             .flatMap(role -> snapshot(role.getRolePrivilegeAssignments()).stream())
-          .filter(rolePrivilegeAssignment -> rolePrivilegeAssignment.getUnassignedAt() == null)
+            .filter(rolePrivilegeAssignment -> rolePrivilegeAssignment.getUnassignedAt() == null)
             .map(rolePrivilegeAssignment -> rolePrivilegeAssignment.getPrivilege())
             .filter(Objects::nonNull)
             .map(privilege -> privilege.getCode())
