@@ -39,6 +39,10 @@ jobs:
           java-version: "25"
           cache: maven
 
+      - name: Get current week (for cache key)
+        id: week
+        run: echo "week=$(date +%Y-%U)" >> "$GITHUB_OUTPUT"
+
       # Cache de la base NVD (~500MB) - évite le retéléchargement à chaque run
       - name: Cache OWASP NVD database
         uses: actions/cache@v4
@@ -51,10 +55,6 @@ jobs:
             owasp-nvd-${{ runner.os }}-
         env:
           WEEK: ${{ steps.week.outputs.week }}
-
-      - name: Get current week (for cache key)
-        id: week
-        run: echo "week=$(date +%Y-%U)" >> $GITHUB_OUTPUT
 
       - name: OWASP dependency check
         env:
@@ -89,8 +89,12 @@ jobs:
           done
 
           echo "::warning::OWASP NVD update impossible après ${max_attempts} tentatives — fallback cache local."
-          run_check -DautoUpdate=false -DfailOnError=false || true
-          exit 0
+          if run_check -DautoUpdate=false; then
+            exit 0
+          fi
+
+          echo "::error::OWASP dependency-check failed after online retries and local-cache fallback."
+          exit 1
 
       - name: Upload OWASP report
         if: always()

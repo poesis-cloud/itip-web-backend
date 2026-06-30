@@ -26,7 +26,7 @@ ITIP operationalises GSM-governed IT governance for enterprises. The backend:
 
 ## 3. Tech Stack
 
-- **Language/Runtime:** Java 21 (virtual threads enabled)
+- **Language/Runtime:** Java 25 (virtual threads enabled)
 - **Framework:** Spring Boot 3.5.x (Web, HATEOAS, Validation, Security, Actuator)
 - **Build:** Maven (`mvn verify` runs all checks including JaCoCo)
 - **Auth:** Spring Security OAuth2 Resource Server (JWT bearer)
@@ -43,7 +43,7 @@ ITIP operationalises GSM-governed IT governance for enterprises. The backend:
 +------------------------+------------------------------+
                          | HTTPS REST (JWT bearer)
 +------------------------v------------------------------+
-|  itip-web-backend  (BFF — Spring Boot 3.5 / Java 21) |
+|  itip-web-backend  (BFF — Spring Boot 3.5 / Java 25) |
 |                                                       |
 |  AppraisalController  ->  AppraisalBffService         |
 |  FrameworkController  ->  FrameworkBffService         |
@@ -96,7 +96,7 @@ ITIP operationalises GSM-governed IT governance for enterprises. The backend:
 
 | Sprint | Name                  | Status      | Scope                                                     |
 | ------ | --------------------- | ----------- | --------------------------------------------------------- |
-| 0      | Scaffold & Bootstrap  | Done        | Java 21 / Spring Boot 3.5, Helm, CI/CD, team setup        |
+| 0      | Scaffold & Bootstrap  | Done        | Java 25 / Spring Boot 3.5, Helm, CI/CD, team setup        |
 | 1      | Core BFF Skeleton     | Not started | Controllers, service stubs, cache config, health endpoint |
 | 2      | Appraisal Indicators  | Not started | 29 mechanisms, 7 bilateral classes, measure types         |
 | 3      | Governance Frameworks | Not started | TOGAF, ISO 25010/12, SAFe, ITIL, GDPR, NIS2, DORA         |
@@ -107,7 +107,7 @@ ITIP operationalises GSM-governed IT governance for enterprises. The backend:
 
 **What works:**
 
-- Repo scaffolded: `pom.xml` (Java 21, Spring Boot 3.5), Maven build passes.
+- Repo scaffolded: `pom.xml` (Java 25, Spring Boot 3.5), Maven build passes.
 - Helm chart with dev/preprod/prod environment value files.
 - CI (`ci.yaml`) and CD (`cd.yaml`) workflows in place.
 - `Makefile` with `dev-up` / `dev-down` / `dev-check` / `prod-deploy` targets.
@@ -137,9 +137,9 @@ ITIP operationalises GSM-governed IT governance for enterprises. The backend:
 ## 10. How to Run Locally
 
 ```bash
-# Prerequisites: Java 21, Maven, kubectl (local cluster), Helm 3
+# Prerequisites: Java 25, Maven, kubectl (local cluster), Helm 3
 make dev-check          # Verify prerequisites and cluster context
-make dev-up             # Deploy Helm chart to local cluster (sie namespace)
+make dev-up             # Deploy Helm chart to local cluster (itip namespace)
 
 # Configure local secrets
 cp .env.dev.example .env.dev   # fill in service URLs, JWT issuer
@@ -154,7 +154,7 @@ mvn spring-boot:run
 ```bash
 # Preprod
 helm upgrade --install itip-web-backend ops/helm \
-  -f ops/helm/environments/preprod/values.yaml --namespace sie
+  -f ops/helm/environments/preprod/values.yaml --namespace itip
 
 # Prod — via CD pipeline only; do not deploy manually
 # See .github/workflows/cd.yaml for Azure OIDC + Helm upgrade commands

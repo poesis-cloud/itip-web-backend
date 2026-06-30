@@ -23,14 +23,26 @@ spec:
             - name: http
               containerPort: 8080
           env:
-            - name: SERVER_PORT
-              value: "8080"
-            - name: OIDC_ISSUER_URI
-              value: {{ .Values.env.OIDC_ISSUER_URI | quote }}
-            - name: SIE_DM_BASE_URL
-              value: {{ .Values.env.SIE_DM_BASE_URL | quote }}
-            - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: {{ .Values.env.OTEL_EXPORTER_OTLP_ENDPOINT | quote }}
+            - name: DB_URL
+              value: {{ .Values.env.DB_URL | quote }}
+            - name: DB_USER
+              value: {{ .Values.env.DB_USER | quote }}
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "itip-web-backend.fullname" . }}-secret
+                  key: DB_PASSWORD
+            - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
+              value: {{ .Values.env.SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI | quote }}
+            - name: ITIP_SECURITY_PERMIT_ALL
+              value: {{ .Values.env.ITIP_SECURITY_PERMIT_ALL | quote }}
+            - name: ITIP_SECURITY_JWT_EXPIRATION_MS
+              value: {{ .Values.env.ITIP_SECURITY_JWT_EXPIRATION_MS | quote }}
+            - name: ITIP_SECURITY_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "itip-web-backend.fullname" . }}-secret
+                  key: ITIP_SECURITY_JWT_SECRET
           readinessProbe:
             httpGet:
               path: /actuator/health

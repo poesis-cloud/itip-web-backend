@@ -1,123 +1,104 @@
 # Copilot Instructions — itip-web-backend
 
-This is the **REST API backend for the IT Intelligence Platform (ITIP)**.
-It is a BFF (Backend-for-Frontend) built with Java 21 / Spring Boot 3.5, deployed on
-Kubernetes (AKS) via Helm. Always read `PROJECT_BRIEF.md` before starting work.
+These instructions are mandatory for all Copilot work in this repository. They apply to the
+`itip-web-backend` Spring Boot BFF only. Keep this file concise and update it whenever the
+project conventions change.
 
----
+## Project Anchor
 
-## Team Agents
+- Always read `PROJECT_BRIEF.md` before non-trivial work and keep it aligned when project state,
+  runtime assumptions, deployment flow, or sprint status change.
+- Treat `itip-web-backend` as the REST Backend-for-Frontend for ITIP. It translates IT-domain needs
+  into calls toward SIE services such as `sie-definition-manager` and
+  `sie-definition-blackboard-manager`.
+- Preserve the current stack unless explicitly asked otherwise: Java 25, Spring Boot 3.5.x, Maven,
+  PostgreSQL, Liquibase, Spring Security OAuth2 Resource Server, Docker, Kubernetes, and Helm.
 
-### Remy (Producer) — `@ai-team-producer`
+## Development Rules
 
-Sprint planning, backlog governance, GitHub Issues, PR coordination.
-Remy NEVER writes application code.
+- Prefer small, coherent changes. Do not opportunistically refactor unrelated code.
+- Fix root causes before adding suppressions. Suppression annotations are last resort only, must be
+  narrowly scoped, and must include a short reason.
+- Use `git mv` and `git rm` for tracked file moves/deletes. Never use plain `mv` or `rm` on tracked
+  files.
+- Never commit secrets, credentials, tokens, private keys, or production passwords.
+- Keep `.env` limited to checked-in non-secret defaults. Keep `.env.dev` local and uncommitted.
+- Use `.yaml` for YAML files. Do not add new tracked `.yml` files.
+- Do not add Docker Compose. Local and deployment flows are Helm/Makefile based.
 
-**Skills:** `product-manager`, `create-pr`, `update-pr`, `sync`, `commit`,
-`chronicle`, `breakdown-epic-pm`, `breakdown-feature-prd`
+## Java and Spring Boot
 
-### Nova / Sage / Milo (Dev) — `@ai-team-dev`
+- Java version is 25. Keep `pom.xml`, Docker images, CI/CD setup, and documentation consistent with
+  Java 25.
+- Prefer Spring Boot and Spring Framework annotations when they express the intent clearly and reduce
+  custom glue code without hiding important behavior.
+- Prefer official libraries and first-party framework integrations over bespoke implementations. Do
+  not write custom code when a maintained Spring Boot, Spring Security, Liquibase, Jackson, Jakarta,
+  Maven, or other official project library already solves the problem cleanly.
+- Every `src/main/java` implementation class must have corresponding tests under `src/test/java`.
+- Maintain JaCoCo instruction coverage at 95% or higher at module level.
+- Follow Repository-Service exclusivity: each Repository is consumed by exactly one owning Service;
+  cross-type data access goes through the owning Service, not a foreign Repository.
+- Prefer annotation-driven boilerplate reduction when helpful, but avoid broad Lombok annotations
+  such as `@Data` on JPA entities.
+- Keep JPA entities explicit: protected no-args constructor, targeted getters/setters, and no
+  generated IDs in required-args constructors.
+- Handle expected exceptions at the correct boundary, preserve root causes, and use structured logs
+  at appropriate levels. Never log secrets or sensitive payloads.
 
-REST API implementation, BFF aggregation, appraisal mechanism design,
-caching, security, OpenAPI shaping.
+## Security
 
-**Skills:** `gsm-knowledge`, `itip-appraisal-indicators`, `itip-framework-sourcing`,
-`agent-customization`, `update-skills`, `commit`, `create-pr`, `context-map`,
-`refactor-plan`, `breakdown-feature-implementation`
+- Default security posture is authenticated JWT bearer access through Spring Security OAuth2 Resource
+  Server.
+- Only explicitly public endpoints may bypass authentication, for example health/info actuator
+  endpoints.
+- Permissive `permitAll` behavior is allowed only for local development and must be profile/property
+  gated.
+- Tenant isolation is mandatory. Cache keys, request-scoped data, and downstream queries must include
+  tenant context when tenant-specific behavior is involved.
+- JWT secrets, database passwords, and production OIDC values must come from environment variables or
+  Kubernetes Secrets, never from packaged resources.
 
-### Ivy (QA) — `@ai-team-qa`
+## Liquibase and Database
 
-JaCoCo coverage enforcement, appraisal measure type correctness, BFF cache
-invalidation tests, API contract tests, E2E sign-off.
+- Runtime migrations must be curated under `src/main/resources/db/changelog/changesets/curated/`.
+- Except for a documented emergency repair, never hand-author Liquibase migrations from scratch.
+  Generate migrations through the configured Liquibase commands, review the generated output, then
+  promote the reviewed changeset into the curated runtime migrations directory.
+- Generated Liquibase diffs belong under `target/generated-liquibase/` and must not be included by
+  the runtime master changelog until reviewed and promoted.
+- Keep `liquibase.properties` at repository root so CLI/plugin configuration is not packaged into
+  the application artifact.
+- Do not hard-code database credentials in `src/main/resources`.
 
-**Skills:** `code-review`, `commit`
+## Ops and Configuration
 
----
+- Kubernetes namespace for this service is `itip` by default. Do not confuse it with the OIDC realm
+  name, which may still be `sie`.
+- Use the Makefile contract: `dev-check`, `dev-up`, `dev-down`, `prod-deploy`, and `package-helm`.
+- Helm values live only under:
+  - `ops/helm/environments/dev/values.yaml`
+  - `ops/helm/environments/preprod/values.yaml`
+  - `ops/helm/environments/prod/values.yaml`
+- Do not add `ops/helm/values.yaml`.
+- Inject Helm secrets through values overrides, `--set-string`, or cluster secret management. Do not
+  commit real secret values.
 
-## Domain Rules (mandatory for all agents)
+## Validation Protocol
 
-### Repository-Service Exclusivity
+- For Java changes, run `mvn test jacoco:report` when feasible. For full PR readiness, run
+  `mvn verify`.
+- Never pipe Maven output through `cat`, `tee`, `grep`, or similar tools. Run Maven directly.
+- For Helm or ops changes, run `make dev-check` and `helm lint ops/helm -f <environment values>` when
+  Helm is available.
+- For YAML-only changes, validate syntax and run the most specific project check available.
+- If a required tool is missing locally, state the exact missing command and the validation that could
+  not be run.
 
-Each Repository interface MUST be consumed by exactly one Service. Cross-type data
-access goes through the owning Service, never through a foreign Repository.
-Use `@Lazy` for circular service dependencies.
+## PR and Review Discipline
 
-### Root-Cause-First
-
-Fix root causes before using suppression annotations (`@SuppressWarnings`,
-`// noinspection`, etc.). Suppression is last resort; scope it narrowly (single
-field/method, never class-level) and add a one-line comment explaining why.
-
-### JaCoCo >=95% Instruction Coverage
-
-Every `src/main` class MUST have corresponding tests in `src/test`. Run:
-
-```bash
-mvn test jacoco:report
-```
-
-Check `target/site/jacoco/index.html`. Coverage MUST be >=95% at module level
-before merging any PR.
-
-### Never Pipe mvn Output
-
-NEVER use `| cat`, `| tee`, `| grep`, `2>&1 | ...` with `mvn` commands.
-Always run `mvn` directly so output renders live in the terminal.
-
-### Git History Preservation
-
-Use `git mv` and `git rm` for all tracked file/folder operations.
-Never use plain `mv`, `rm`, or OS-level equivalents on tracked files.
-
-### Archive Folders Are Read-Only
-
-`archives/` and `archive/` folders contain superseded content.
-Never edit, update, or delete files inside them.
-
-### Commit Trailer (required on every commit)
-
-```
-Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
-```
-
----
-
-## Appraisal Indicator Rules
-
-- There are **29 appraisal mechanisms** across **7 bilateral classes**
-  (meta-governance zone + governance zone).
-- Each mechanism's return type (measure type) is fixed by the
-  `itip-appraisal-indicators` skill catalog:
-  `percent` | `count` | `days` | `ratio`
-- When implementing or reviewing appraisal rules, ALWAYS load the
-  `itip-appraisal-indicators` skill and cross-check measure types.
-- NA (meta-governance) and NX (governance) dual-zone semantics must be respected.
-
-## BFF Caching Rules
-
-- Cache keys MUST include **tenant ID** + **indicator ID** (or framework ID).
-- TTL is environment-configurable: short in dev, longer in preprod/prod.
-- Cache invalidation tests are required for every cached endpoint.
-- Use `@CacheEvict` on write paths; document TTL in `application.yaml` comments.
-
-## SIE Repository Structure Consistency
-
-- `ops/helm/` with environments: `dev/`, `preprod/`, `prod/` — no root `values.yaml`.
-- `Makefile` with `dev-up`, `dev-down`, `dev-check`, `prod-deploy`.
-- CI: `.github/workflows/ci.yaml` (Maven build/test, Helm lint).
-- CD: `.github/workflows/cd.yaml` (Azure OIDC, Helm upgrade).
-- YAML files use `.yaml` extension; do not add `.yml`.
-
----
-
-## SE Plugin Agents (global — invoke by name)
-
-These agents are installed globally via the `software-engineering-team` plugin. Invoke them by name in any chat.
-
-| When                                     | Invoke                        |
-| ---------------------------------------- | ----------------------------- |
-| Security review before any merge         | `SE: Security`                |
-| Architecture decision or structurant PR  | `SE: Architect`               |
-| CI/CD pipeline, Helm, deployment debug   | `SE: DevOps/CI`               |
-| Writing/updating API docs, ADRs, README  | `SE: Technical Writer`        |
-| Authoring GitHub Issues or backlog items | `SE: Product Manager Advisor` |
+- Treat review comments as requirements unless they conflict with an explicit owner decision.
+- If a review comment conflicts with current project intent, preserve the owner decision and update
+  code/config/docs so the intent is explicit and internally consistent.
+- Before marking a PR review item resolved, verify there is no stale contradictory reference in
+  `PROJECT_BRIEF.md`, `README.md`, CI/CD, Docker, Helm, Makefile, or runtime configuration.

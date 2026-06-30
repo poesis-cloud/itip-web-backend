@@ -137,10 +137,10 @@
         <version>${liquibase.version}</version>
         <configuration>
           <searchPath>${project.basedir}/src/main/resources</searchPath>
-          <propertyFile>liquibase.properties</propertyFile>
+          <propertyFile>${project.basedir}/liquibase.properties</propertyFile>
           <diffTypes>tables,columns,sequences,primaryKeys,uniqueConstraints,indexes</diffTypes>
-          <diffChangeLogFile>${project.basedir}/src/main/resources/db/changelog/changesets/generated/db.changelog-diff-${maven.build.timestamp}.yaml</diffChangeLogFile>
-          <outputChangeLogFile>${project.basedir}/src/main/resources/db/changelog/changesets/generated/db.changelog-output-${maven.build.timestamp}.yaml</outputChangeLogFile>
+          <diffChangeLogFile>${project.build.directory}/generated-liquibase/db.changelog-diff-${maven.build.timestamp}.yaml</diffChangeLogFile>
+          <outputChangeLogFile>${project.build.directory}/generated-liquibase/db.changelog-output-${maven.build.timestamp}.yaml</outputChangeLogFile>
           <outputDefaultCatalog>false</outputDefaultCatalog>
           <outputDefaultSchema>false</outputDefaultSchema>
           <diffExcludeObjects>checkConstraint</diffExcludeObjects>
@@ -295,31 +295,6 @@
             <trimTrailingWhitespace/>
             <endWithNewline/>
           </java>
-          <yaml>
-            <includes>
-              <include>**/*.yaml</include>
-            </includes>
-            <excludes>
-              <exclude>target/**</exclude>
-              <exclude>ops/helm/templates/**</exclude>
-            </excludes>
-            <prettier>
-              <prettierVersion>3.3.3</prettierVersion>
-            </prettier>
-          </yaml>
-          <formats>
-            <format>
-              <includes>
-                <include>**/*.md</include>
-              </includes>
-              <excludes>
-                <exclude>target/**</exclude>
-              </excludes>
-              <prettier>
-                <prettierVersion>3.3.3</prettierVersion>
-              </prettier>
-            </format>
-          </formats>
         </configuration>
       </plugin>
       <plugin>
