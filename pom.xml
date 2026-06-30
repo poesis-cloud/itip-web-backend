@@ -136,8 +136,11 @@
         <artifactId>liquibase-maven-plugin</artifactId>
         <version>${liquibase.version}</version>
         <configuration>
-          <searchPath>${project.basedir}/src/main/resources</searchPath>
-          <propertyFile>${project.basedir}/liquibase.properties</propertyFile>
+          <searchPath>${project.basedir},${project.basedir}/src/main/resources</searchPath>
+          <propertyFile>liquibase.properties</propertyFile>
+          <url>${env.LIQUIBASE_URL}</url>
+          <username>${env.LIQUIBASE_USERNAME}</username>
+          <password>${env.LIQUIBASE_PASSWORD}</password>
           <diffTypes>tables,columns,sequences,primaryKeys,uniqueConstraints,indexes</diffTypes>
           <diffChangeLogFile>${project.build.directory}/generated-liquibase/db.changelog-diff-${maven.build.timestamp}.yaml</diffChangeLogFile>
           <outputChangeLogFile>${project.build.directory}/generated-liquibase/db.changelog-output-${maven.build.timestamp}.yaml</outputChangeLogFile>
