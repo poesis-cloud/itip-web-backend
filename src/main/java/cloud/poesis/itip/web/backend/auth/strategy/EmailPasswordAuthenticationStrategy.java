@@ -26,10 +26,7 @@ public class EmailPasswordAuthenticationStrategy {
       String token = accessTokenService.generateToken(account);
       Instant expiresAt = Instant.now().plusMillis(accessTokenService.getExpirationMs());
 
-      return AuthenticationResult.builder()
-          .token(token)
-          .expiresAt(expiresAt)
-          .build();
+      return AuthenticationResult.builder().token(token).expiresAt(expiresAt).build();
     } catch (AuthenticationException exception) {
       log.warn(
           "Email/password authentication failed for email={} with type={} and reason={}",
