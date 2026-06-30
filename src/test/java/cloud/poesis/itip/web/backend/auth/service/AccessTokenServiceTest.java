@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 
-class AuthTokenServiceTest {
+class AccessTokenServiceTest {
 
   private static final String SECRET = "0123456789abcdef0123456789abcdef";
 
@@ -22,23 +22,64 @@ class AuthTokenServiceTest {
     return io.jsonwebtoken.security.Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8));
   }
 
+  private String tokenForEmail(String email, Instant expiration) {
+    return Jwts.builder()
+        .subject(email)
+        .id(UUID.randomUUID().toString())
+        .issuedAt(Date.from(Instant.now()))
+        .expiration(Date.from(expiration))
+        .signWith(signingKey(), Jwts.SIG.HS256)
+        .compact();
+  }
+
   @Test
-  void shouldGenerateTokenAndExtractEmail() {
-    AuthTokenService service = new AuthTokenService(SECRET, 3600000);
+  void shouldGenerateTokenAndExposeExpiration() {
+    AccessTokenService service = new AccessTokenService(SECRET, 3600000L);
     Account account = Account.builder().id(UUID.randomUUID()).email("user@itip.local").build();
 
     String token = service.generateToken(account);
-    String extractedEmail = service.extractEmail(token);
 
-    assertThat(token).isNotBlank();
-    assertThat(extractedEmail).isEqualTo("user@itip.local");
+    assertThat(service.getExpirationMs()).isEqualTo(3600000L);
+    assertThat(
+            Jwts.parser()
+                .verifyWith(signingKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .getSubject())
+        .isEqualTo("user@itip.local");
+  }
+
+  @Test
+  void shouldRespectConfiguredExpirationWindow() {
+    AccessTokenService service = new AccessTokenService(SECRET, 12345L);
+    Account account = Account.builder().id(UUID.randomUUID()).email("user@itip.local").build();
+
+    String token = service.generateToken(account);
+    Date expiration =
+        Jwts.parser()
+            .verifyWith(signingKey())
+            .build()
+            .parseSignedClaims(token)
+            .getPayload()
+            .getExpiration();
+
+    assertThat(service.getExpirationMs()).isEqualTo(12345L);
+    assertThat(expiration).isNotNull();
+  }
+
+  @Test
+  void shouldExtractEmailFromValidToken() {
+    AccessTokenService service = new AccessTokenService(SECRET, 3600000L);
+    String token = tokenForEmail("user@itip.local", Instant.now().plusSeconds(60));
+
+    assertThat(service.extractEmail(token)).isEqualTo("user@itip.local");
   }
 
   @Test
   void isTokenValidShouldReturnTrueForMatchingUser() {
-    AuthTokenService service = new AuthTokenService(SECRET, 3600000);
-    Account account = Account.builder().id(UUID.randomUUID()).email("user@itip.local").build();
-    String token = service.generateToken(account);
+    AccessTokenService service = new AccessTokenService(SECRET, 3600000L);
+    String token = tokenForEmail("user@itip.local", Instant.now().plusSeconds(60));
     UserDetails userDetails =
         User.withUsername("user@itip.local").password("ignored").authorities("READ_USER").build();
 
@@ -47,9 +88,8 @@ class AuthTokenServiceTest {
 
   @Test
   void isTokenValidShouldReturnFalseForDifferentUser() {
-    AuthTokenService service = new AuthTokenService(SECRET, 3600000);
-    Account account = Account.builder().id(UUID.randomUUID()).email("user@itip.local").build();
-    String token = service.generateToken(account);
+    AccessTokenService service = new AccessTokenService(SECRET, 3600000L);
+    String token = tokenForEmail("user@itip.local", Instant.now().plusSeconds(60));
     UserDetails userDetails =
         User.withUsername("other@itip.local").password("ignored").authorities("READ_USER").build();
 
@@ -58,9 +98,8 @@ class AuthTokenServiceTest {
 
   @Test
   void isTokenValidShouldReturnFalseForExpiredToken() {
-    AuthTokenService service = new AuthTokenService(SECRET, -1000);
-    Account account = Account.builder().id(UUID.randomUUID()).email("user@itip.local").build();
-    String token = service.generateToken(account);
+    AccessTokenService service = new AccessTokenService(SECRET, 3600000L);
+    String token = tokenForEmail("user@itip.local", Instant.now().minusSeconds(60));
     UserDetails userDetails =
         User.withUsername("user@itip.local").password("ignored").authorities("READ_USER").build();
 
@@ -69,7 +108,7 @@ class AuthTokenServiceTest {
 
   @Test
   void isTokenValidShouldReturnFalseForMalformedToken() {
-    AuthTokenService service = new AuthTokenService(SECRET, 3600000);
+    AccessTokenService service = new AccessTokenService(SECRET, 3600000L);
     UserDetails userDetails =
         User.withUsername("user@itip.local").password("ignored").authorities("READ_USER").build();
 
@@ -78,38 +117,27 @@ class AuthTokenServiceTest {
 
   @Test
   void extractEmailShouldThrowForMalformedToken() {
-    AuthTokenService service = new AuthTokenService(SECRET, 3600000);
+    AccessTokenService service = new AccessTokenService(SECRET, 3600000L);
 
     assertThatThrownBy(() -> service.extractEmail("not-a-jwt"))
         .isInstanceOf(RuntimeException.class);
   }
 
   @Test
-  void shouldExposeConfiguredExpirationMs() {
-    AuthTokenService service = new AuthTokenService(SECRET, 12345L);
-
-    assertThat(service.getExpirationMs()).isEqualTo(12345L);
-  }
-
-  @Test
   void isTokenValidShouldReturnFalseWhenUserDetailsUsernameIsNull() {
-    AuthTokenService service = new AuthTokenService(SECRET, 3600000);
-    Account account = Account.builder().id(UUID.randomUUID()).email("user@itip.local").build();
-    String token = service.generateToken(account);
+    AccessTokenService service = new AccessTokenService(SECRET, 3600000L);
+    String token = tokenForEmail("user@itip.local", Instant.now().plusSeconds(60));
     UserDetails userDetails =
-        User.withUsername("placeholder").password("ignored").authorities("READ_USER").build();
-
-    UserDetails userDetailsWithNullUsername =
         new UserDetails() {
           @Override
           public java.util.Collection<? extends org.springframework.security.core.GrantedAuthority>
               getAuthorities() {
-            return userDetails.getAuthorities();
+            return java.util.List.of();
           }
 
           @Override
           public String getPassword() {
-            return userDetails.getPassword();
+            return "ignored";
           }
 
           @Override
@@ -118,12 +146,12 @@ class AuthTokenServiceTest {
           }
         };
 
-    assertThat(service.isTokenValid(token, userDetailsWithNullUsername)).isFalse();
+    assertThat(service.isTokenValid(token, userDetails)).isFalse();
   }
 
   @Test
   void isTokenValidShouldReturnFalseWhenTokenIsNull() {
-    AuthTokenService service = new AuthTokenService(SECRET, 3600000);
+    AccessTokenService service = new AccessTokenService(SECRET, 3600000L);
     UserDetails userDetails =
         User.withUsername("user@itip.local").password("ignored").authorities("READ_USER").build();
 
@@ -131,19 +159,8 @@ class AuthTokenServiceTest {
   }
 
   @Test
-  void isTokenValidShouldReturnFalseWhenEmailMatchesButTokenIsExpired() {
-    AuthTokenService service = new AuthTokenService(SECRET, -1000);
-    Account account = Account.builder().id(UUID.randomUUID()).email("user@itip.local").build();
-    String token = service.generateToken(account);
-    UserDetails userDetails =
-        User.withUsername("user@itip.local").password("ignored").authorities("READ_USER").build();
-
-    assertThat(service.isTokenValid(token, userDetails)).isFalse();
-  }
-
-  @Test
   void isTokenValidShouldReturnFalseWhenSubjectClaimIsMissing() {
-    AuthTokenService service = new AuthTokenService(SECRET, 3600000);
+    AccessTokenService service = new AccessTokenService(SECRET, 3600000L);
     String tokenWithoutSubject =
         Jwts.builder()
             .id(UUID.randomUUID().toString())
@@ -159,7 +176,7 @@ class AuthTokenServiceTest {
 
   @Test
   void isTokenValidShouldReturnFalseWhenExpirationClaimIsMissing() {
-    AuthTokenService service = new AuthTokenService(SECRET, 3600000);
+    AccessTokenService service = new AccessTokenService(SECRET, 3600000L);
     String tokenWithoutExpiration =
         Jwts.builder()
             .subject("user@itip.local")

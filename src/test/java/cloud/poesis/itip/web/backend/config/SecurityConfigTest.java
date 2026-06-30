@@ -6,10 +6,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import cloud.poesis.itip.web.backend.auth.model.AuthMethod;
 import cloud.poesis.itip.web.backend.auth.model.AuthenticationResult;
-import cloud.poesis.itip.web.backend.auth.strategy.AuthenticationStrategy;
-import cloud.poesis.itip.web.backend.auth.strategy.AuthenticationStrategyResolver;
+import cloud.poesis.itip.web.backend.auth.strategy.EmailPasswordAuthenticationStrategy;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,19 +24,14 @@ class SecurityConfigTest {
 
   @Autowired private MockMvc mockMvc;
 
-  @MockitoBean private AuthenticationStrategyResolver authenticationStrategyResolver;
-
-  @MockitoBean private AuthenticationStrategy authenticationStrategy;
+  @MockitoBean private EmailPasswordAuthenticationStrategy emailPasswordAuthenticationStrategy;
 
   @Test
   void loginEndpointShouldBeAccessibleWithoutAuthentication() throws Exception {
-    when(authenticationStrategyResolver.resolve(AuthMethod.LOCAL))
-        .thenReturn(authenticationStrategy);
-    when(authenticationStrategy.authenticate(any()))
+    when(emailPasswordAuthenticationStrategy.authenticate(any()))
         .thenReturn(
             AuthenticationResult.builder()
                 .token("jwt-token")
-                .email("security@itip.local")
                 .expiresAt(Instant.parse("2030-01-01T00:00:00Z"))
                 .build());
 

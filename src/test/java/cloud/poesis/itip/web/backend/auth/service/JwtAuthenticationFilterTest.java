@@ -21,7 +21,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 @ExtendWith(MockitoExtension.class)
 class JwtAuthenticationFilterTest {
 
-  @Mock private AuthTokenService authTokenService;
+  @Mock private AccessTokenService accessTokenService;
 
   @Mock private AccountService accountService;
 
@@ -41,7 +41,7 @@ class JwtAuthenticationFilterTest {
     jwtAuthenticationFilter.doFilter(request, response, chain);
 
     assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
-    verifyNoInteractions(authTokenService, accountService);
+    verifyNoInteractions(accessTokenService, accountService);
   }
 
   @Test
@@ -51,7 +51,7 @@ class JwtAuthenticationFilterTest {
     MockHttpServletResponse response = new MockHttpServletResponse();
     MockFilterChain chain = new MockFilterChain();
 
-    when(authTokenService.extractEmail("invalid-token"))
+    when(accessTokenService.extractEmail("invalid-token"))
         .thenThrow(new RuntimeException("bad token"));
 
     jwtAuthenticationFilter.doFilter(request, response, chain);
@@ -69,9 +69,9 @@ class JwtAuthenticationFilterTest {
     UserDetails userDetails =
         User.withUsername("auth@itip.local").password("ignored").authorities("READ_USER").build();
 
-    when(authTokenService.extractEmail("valid-token")).thenReturn("auth@itip.local");
+    when(accessTokenService.extractEmail("valid-token")).thenReturn("auth@itip.local");
     when(accountService.loadUserByUsername("auth@itip.local")).thenReturn(userDetails);
-    when(authTokenService.isTokenValid("valid-token", userDetails)).thenReturn(true);
+    when(accessTokenService.isTokenValid("valid-token", userDetails)).thenReturn(true);
 
     jwtAuthenticationFilter.doFilter(request, response, chain);
 
@@ -90,7 +90,7 @@ class JwtAuthenticationFilterTest {
     jwtAuthenticationFilter.doFilter(request, response, chain);
 
     assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
-    verifyNoInteractions(authTokenService, accountService);
+    verifyNoInteractions(accessTokenService, accountService);
   }
 
   @Test
@@ -110,7 +110,7 @@ class JwtAuthenticationFilterTest {
             new UsernamePasswordAuthenticationToken(
                 existingUser, null, existingUser.getAuthorities()));
 
-    when(authTokenService.extractEmail("valid-token")).thenReturn("new@itip.local");
+    when(accessTokenService.extractEmail("valid-token")).thenReturn("new@itip.local");
 
     jwtAuthenticationFilter.doFilter(request, response, chain);
 
@@ -126,7 +126,7 @@ class JwtAuthenticationFilterTest {
     MockHttpServletResponse response = new MockHttpServletResponse();
     MockFilterChain chain = new MockFilterChain();
 
-    when(authTokenService.extractEmail("valid-token")).thenReturn(" ");
+    when(accessTokenService.extractEmail("valid-token")).thenReturn(" ");
 
     jwtAuthenticationFilter.doFilter(request, response, chain);
 
@@ -144,9 +144,9 @@ class JwtAuthenticationFilterTest {
     UserDetails userDetails =
         User.withUsername("auth@itip.local").password("ignored").authorities("READ_USER").build();
 
-    when(authTokenService.extractEmail("invalid-token")).thenReturn("auth@itip.local");
+    when(accessTokenService.extractEmail("invalid-token")).thenReturn("auth@itip.local");
     when(accountService.loadUserByUsername("auth@itip.local")).thenReturn(userDetails);
-    when(authTokenService.isTokenValid("invalid-token", userDetails)).thenReturn(false);
+    when(accessTokenService.isTokenValid("invalid-token", userDetails)).thenReturn(false);
 
     jwtAuthenticationFilter.doFilter(request, response, chain);
 

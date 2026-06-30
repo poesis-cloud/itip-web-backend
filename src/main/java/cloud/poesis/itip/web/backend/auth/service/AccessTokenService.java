@@ -16,13 +16,12 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 @Service
-public final class AuthTokenService {
+public final class AccessTokenService {
 
   private final SecretKey signingKey;
-
   @Getter private final long expirationMs;
 
-  public AuthTokenService(
+  public AccessTokenService(
       @Value("${itip.security.jwt.secret}") String jwtSecret,
       @Value("${itip.security.jwt.expiration-ms}") long expirationMs) {
     this.signingKey = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));

@@ -6,11 +6,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import cloud.poesis.itip.web.backend.auth.model.AuthMethod;
 import cloud.poesis.itip.web.backend.auth.model.AuthenticationResult;
-import cloud.poesis.itip.web.backend.auth.strategy.AuthenticationStrategy;
-import cloud.poesis.itip.web.backend.auth.strategy.AuthenticationStrategyResolver;
-import cloud.poesis.itip.web.backend.auth.strategy.UnsupportedAuthMethodException;
+import cloud.poesis.itip.web.backend.auth.strategy.EmailPasswordAuthenticationStrategy;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,9 +21,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 @ExtendWith(MockitoExtension.class)
 class AuthControllerTest {
 
-  @Mock private AuthenticationStrategyResolver authenticationStrategyResolver;
-
-  @Mock private AuthenticationStrategy authenticationStrategy;
+  @Mock private EmailPasswordAuthenticationStrategy authenticationStrategy;
 
   @InjectMocks private AuthController authController;
 
@@ -38,13 +33,10 @@ class AuthControllerTest {
   void loginShouldReturnJwtResponse() throws Exception {
     MockMvc mockMvc = buildMockMvc();
 
-    when(authenticationStrategyResolver.resolve(AuthMethod.LOCAL))
-        .thenReturn(authenticationStrategy);
     when(authenticationStrategy.authenticate(any()))
         .thenReturn(
             AuthenticationResult.builder()
                 .token("jwt-value")
-                .email("john.doe@itip.local")
                 .expiresAt(Instant.parse("2030-01-01T00:00:00Z"))
                 .build());
 
@@ -61,38 +53,13 @@ class AuthControllerTest {
                     """))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.token").value("jwt-value"))
-        .andExpect(jsonPath("$.email").value("john.doe@itip.local"))
         .andExpect(jsonPath("$.expiresAt").isNumber());
-  }
-
-  @Test
-  void loginShouldReturnBadRequestWhenAuthMethodIsUnsupported() throws Exception {
-    MockMvc mockMvc = buildMockMvc();
-
-    when(authenticationStrategyResolver.resolve(AuthMethod.SAML))
-        .thenThrow(new UnsupportedAuthMethodException("SAML auth is not supported"));
-
-    mockMvc
-        .perform(
-            post("/api/auth/login")
-                .contentType("application/json")
-                .content(
-                    """
-                    {
-                      "email": "john.doe@itip.local",
-                      "password": "password",
-                      "authMethod": "SAML"
-                    }
-                    """))
-        .andExpect(status().isBadRequest());
   }
 
   @Test
   void loginShouldReturnUnauthorizedWhenAuthenticationFails() throws Exception {
     MockMvc mockMvc = buildMockMvc();
 
-    when(authenticationStrategyResolver.resolve(AuthMethod.LOCAL))
-        .thenReturn(authenticationStrategy);
     when(authenticationStrategy.authenticate(any()))
         .thenThrow(new BadCredentialsException("invalid credentials"));
 
@@ -114,7 +81,7 @@ class AuthControllerTest {
   void loginShouldReturnInternalServerErrorOnUnexpectedRuntimeException() throws Exception {
     MockMvc mockMvc = buildMockMvc();
 
-    when(authenticationStrategyResolver.resolve(AuthMethod.LOCAL))
+    when(authenticationStrategy.authenticate(any()))
         .thenThrow(new RuntimeException("unexpected error"));
 
     mockMvc

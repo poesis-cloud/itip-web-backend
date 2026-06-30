@@ -19,7 +19,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-  private final AuthTokenService authTokenService;
+  private final AccessTokenService accessTokenService;
   private final AccountService accountService;
 
   @Override
@@ -38,7 +38,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     String token = authHeader.substring(7);
     String email;
     try {
-      email = authTokenService.extractEmail(token);
+      email = accessTokenService.extractEmail(token);
     } catch (RuntimeException exception) {
       filterChain.doFilter(request, response);
       return;
@@ -47,7 +47,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     if (StringUtils.hasText(email)
         && SecurityContextHolder.getContext().getAuthentication() == null) {
       UserDetails userDetails = accountService.loadUserByUsername(email);
-      if (authTokenService.isTokenValid(token, userDetails)) {
+      if (accessTokenService.isTokenValid(token, userDetails)) {
         UsernamePasswordAuthenticationToken authenticationToken =
             new UsernamePasswordAuthenticationToken(
                 userDetails, null, userDetails.getAuthorities());

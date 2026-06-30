@@ -12,6 +12,5 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class AuthenticationResult {
   private String token;
-  private String email;
   private Instant expiresAt;
 }

@@ -2,6 +2,3 @@ databaseChangeLog:
   - includeAll:
       path: changesets/curated
       relativeToChangelogFile: true
-  - includeAll:
-      path: changes
-      relativeToChangelogFile: true

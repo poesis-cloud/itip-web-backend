@@ -11,7 +11,6 @@ import cloud.poesis.itip.web.backend.auth.entity.RolePrivilegeAssignment;
 import cloud.poesis.itip.web.backend.auth.service.AccountService;
 import java.time.Instant;
 import java.util.Objects;
-import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -206,7 +205,6 @@ class AccountRepositoryIntegrityTest {
             .passwordHash("hashed-password")
             .fullName("Test User")
             .enabled(true)
-            .tenantId(UUID.randomUUID())
             .build();
     return entityManager.persistFlushFind(account);
   }

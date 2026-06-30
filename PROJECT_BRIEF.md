@@ -97,7 +97,7 @@ ITIP operationalises GSM-governed IT governance for enterprises. The backend:
 | Sprint | Name                  | Status      | Scope                                                     |
 | ------ | --------------------- | ----------- | --------------------------------------------------------- |
 | 0      | Scaffold & Bootstrap  | Done        | Java 25 / Spring Boot 3.5, Helm, CI/CD, team setup        |
-| 1      | Core BFF Skeleton     | Not started | Controllers, service stubs, cache config, health endpoint |
+| 1      | Core BFF Skeleton     | In progress | Controllers, service stubs, cache config, health endpoint |
 | 2      | Appraisal Indicators  | Not started | 29 mechanisms, 7 bilateral classes, measure types         |
 | 3      | Governance Frameworks | Not started | TOGAF, ISO 25010/12, SAFe, ITIL, GDPR, NIS2, DORA         |
 | 4      | GSM Query Layer       | Not started | Ascription/Archetype proxy, definition sourcing           |
@@ -111,10 +111,12 @@ ITIP operationalises GSM-governed IT governance for enterprises. The backend:
 - Helm chart with dev/preprod/prod environment value files.
 - CI (`ci.yaml`) and CD (`cd.yaml`) workflows in place.
 - `Makefile` with `dev-up` / `dev-down` / `dev-check` / `prod-deploy` targets.
+- Auth flow simplified to a single email/password path backed by `LocalAuthenticationStrategy`.
+- Liquibase baseline regenerated from an empty PostgreSQL database and validated successfully.
 
 **What does not work yet:**
 
-- No controllers or service implementations.
+- Core BFF capabilities are still incomplete beyond the auth slice.
 - No caching configuration.
 - No integration with `sie-definition-manager` or `sie-definition-blackboard-manager`.
 
