@@ -4,6 +4,9 @@ databaseChangeLog:
       author: copilot
       preConditions:
         - onFail: MARK_RAN
+        - changeLogPropertyDefined:
+            property: enable.test.superadmin.seed
+            value: "true"
         - sqlCheck:
             expectedResult: "1"
             sql: SELECT COUNT(1) FROM role WHERE name = 'TEST_SUPERADMIN'

@@ -179,7 +179,7 @@ class AccountRepositoryIntegrityTest {
             AccountRoleAssignment.builder()
                 .account(account)
                 .role(role)
-                .revokedAt(Instant.now())
+              .unassignedAt(Instant.now())
                 .build()));
 
     entityManager.clear();
@@ -191,7 +191,7 @@ class AccountRepositoryIntegrityTest {
     assertThat(loaded.getAccountRoleAssignments())
         .allMatch(
             assignment ->
-                assignment.getRevokedAt() != null
+            assignment.getUnassignedAt() != null
                     || (assignment.getExpiresAt() != null
                         && !assignment.getExpiresAt().isAfter(Instant.now())));
 

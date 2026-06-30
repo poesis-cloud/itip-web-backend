@@ -22,25 +22,25 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
       WHERE a.email = :email
         AND (
           ara IS NULL
-          OR (ara.revokedAt IS NULL AND (ara.expiresAt IS NULL OR ara.expiresAt > CURRENT_TIMESTAMP))
+          OR (ara.unassignedAt IS NULL AND (ara.expiresAt IS NULL OR ara.expiresAt > CURRENT_TIMESTAMP))
           OR NOT EXISTS (
             SELECT 1
             FROM AccountRoleAssignment araActive
             WHERE araActive.account = a
-              AND araActive.revokedAt IS NULL
+              AND araActive.unassignedAt IS NULL
               AND (araActive.expiresAt IS NULL OR araActive.expiresAt > CURRENT_TIMESTAMP)
           )
         )
         AND (
           ara IS NULL
-          OR ara.revokedAt IS NOT NULL
+          OR ara.unassignedAt IS NOT NULL
           OR (ara.expiresAt IS NOT NULL AND ara.expiresAt <= CURRENT_TIMESTAMP)
-          OR (rpa IS NULL OR rpa.revokedAt IS NULL)
+          OR (rpa IS NULL OR rpa.unassignedAt IS NULL)
           OR NOT EXISTS (
             SELECT 1
             FROM RolePrivilegeAssignment rpaActive
             WHERE rpaActive.role = ara.role
-              AND rpaActive.revokedAt IS NULL
+              AND rpaActive.unassignedAt IS NULL
           )
         )
       """)

@@ -138,7 +138,7 @@ databaseChangeLog:
               SELECT account_id, role_id
               FROM account_role_assignment
               WHERE revoked_at IS NULL
-                AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+                AND expires_at IS NULL
               GROUP BY account_id, role_id
               HAVING COUNT(*) > 1
             ) duplicates;

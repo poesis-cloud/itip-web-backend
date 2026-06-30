@@ -52,6 +52,7 @@ public class Account {
   @Column(name = "enabled", nullable = false)
   private boolean enabled = true;
 
+  // Null means global account; non-null scopes account access to a tenant.
   @Column(name = "tenant_id", nullable = true)
   private UUID tenantId;
 

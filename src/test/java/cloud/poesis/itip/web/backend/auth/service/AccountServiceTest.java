@@ -40,7 +40,7 @@ class AccountServiceTest {
         RolePrivilegeAssignment.builder()
             .id(UUID.randomUUID())
             .privilege(revokedPrivilege)
-            .revokedAt(Instant.now())
+            .unassignedAt(Instant.now())
             .build();
 
     Role activeRole =
@@ -245,7 +245,7 @@ class AccountServiceTest {
                     AccountRoleAssignment.builder()
                         .id(UUID.randomUUID())
                         .role(role)
-                        .revokedAt(Instant.now())
+                        .unassignedAt(Instant.now())
                         .build()))
             .build();
 

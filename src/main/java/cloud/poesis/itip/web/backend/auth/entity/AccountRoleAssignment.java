@@ -66,5 +66,5 @@ public class AccountRoleAssignment {
   private Instant expiresAt;
 
   @Column(name = "revoked_at", nullable = true)
-  private Instant revokedAt;
+    private Instant unassignedAt;
 }
