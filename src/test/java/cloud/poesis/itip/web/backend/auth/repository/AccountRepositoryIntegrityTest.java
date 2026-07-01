@@ -210,12 +210,12 @@ class AccountRepositoryIntegrityTest {
   }
 
   private Role persistRole(String name) {
-    Role role = Role.builder().name(name).description(name + " role").build();
+    Role role = Role.builder().name(name).build();
     return entityManager.persistFlushFind(role);
   }
 
   private Privilege persistPrivilege(String code) {
-    Privilege privilege = Privilege.builder().code(code).description(code + " privilege").build();
+    Privilege privilege = Privilege.builder().code(code).build();
     return entityManager.persistFlushFind(privilege);
   }
 }

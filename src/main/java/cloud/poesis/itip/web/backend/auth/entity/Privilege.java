@@ -39,9 +39,6 @@ public class Privilege {
   @Column(name = "code", nullable = false, unique = true)
   private String code;
 
-  @Column(name = "description", nullable = true)
-  private String description;
-
   @Default
   @OneToMany(mappedBy = "privilege", fetch = FetchType.LAZY)
   private Set<RolePrivilegeAssignment> rolePrivilegeAssignments = new HashSet<>();

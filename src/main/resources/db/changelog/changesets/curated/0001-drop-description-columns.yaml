@@ -1,0 +1,15 @@
+databaseChangeLog:
+- changeSet:
+    id: 1782929344658-17
+    author: root (generated)
+    changes:
+    - dropColumn:
+        columnName: description
+        tableName: privilege
+- changeSet:
+    id: 1782929344658-18
+    author: root (generated)
+    changes:
+    - dropColumn:
+        columnName: description
+        tableName: role

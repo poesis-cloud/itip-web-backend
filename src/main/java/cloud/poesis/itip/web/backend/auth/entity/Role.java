@@ -42,9 +42,6 @@ public class Role {
   @Column(name = "name", nullable = false, unique = true)
   private String name;
 
-  @Column(name = "description", nullable = true)
-  private String description;
-
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)
   private Instant createdAt;
