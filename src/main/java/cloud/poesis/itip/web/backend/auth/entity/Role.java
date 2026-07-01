@@ -20,7 +20,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
-import org.hibernate.annotations.UuidGenerator;
 
 @Entity
 @Table(name = "role")
@@ -35,8 +34,7 @@ public class Role {
   @Id
   @EqualsAndHashCode.Include
   @GeneratedValue
-  @UuidGenerator
-  @Column(name = "id", nullable = false, updatable = false)
+  @Column(name = "id", nullable = false, updatable = false, insertable = false)
   private UUID id;
 
   @Column(name = "name", nullable = false, unique = true)

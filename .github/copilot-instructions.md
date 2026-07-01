@@ -70,6 +70,19 @@ project conventions change.
 - Keep `liquibase.properties` at repository root so CLI/plugin configuration is not packaged into
   the application artifact.
 - Do not hard-code database credentials in `src/main/resources`.
+- For every newly created persisted entity/table with a UUID primary key, add a curated Liquibase
+  migration in the same change that enforces DB-managed UUIDv7.
+- Mandatory DB enforcement for new UUID PK tables:
+  - set `id` default to `uuid_v7()`
+  - attach assignment trigger via helper (`tgf_assign_id` path)
+  - attach UUIDv7 guard trigger via helper (`tgf_reject_non_uuid_v7` path)
+- Never rely only on application-side UUID generation for new entities; database enforcement is the
+  source of truth.
+- Minimum validation for such changes:
+  - Liquibase update succeeds
+  - DB proves auto-generation of UUIDv7 when `id` is omitted
+  - DB rejects explicit non-v7 UUID values
+  - full app verification succeeds (`mvn -B verify`)
 
 ## Ops and Configuration
 

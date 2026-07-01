@@ -17,7 +17,6 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.UuidGenerator;
 
 @Entity
 @Table(name = "privilege")
@@ -32,8 +31,7 @@ public class Privilege {
   @Id
   @EqualsAndHashCode.Include
   @GeneratedValue
-  @UuidGenerator
-  @Column(name = "id", nullable = false, updatable = false)
+  @Column(name = "id", nullable = false, updatable = false, insertable = false)
   private UUID id;
 
   @Column(name = "code", nullable = false, unique = true)
