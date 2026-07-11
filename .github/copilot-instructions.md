@@ -12,7 +12,8 @@ project conventions change.
   into calls toward SIE services such as `sie-definition-manager` and
   `sie-definition-blackboard-manager`.
 - Preserve the current stack unless explicitly asked otherwise: Java 25, Spring Boot 3.5.x, Maven,
-  PostgreSQL, Liquibase, Spring Security OAuth2 Resource Server, Docker, Kubernetes, and Helm.
+  PostgreSQL, Liquibase, Spring Security with custom JWT bearer filter and service, Docker,
+  Kubernetes, and Helm.
 
 ## Development Rules
 
@@ -48,8 +49,8 @@ project conventions change.
 
 ## Security
 
-- Default security posture is authenticated JWT bearer access through Spring Security OAuth2 Resource
-  Server.
+- Default security posture is authenticated JWT bearer access through the custom
+  `JwtAuthenticationFilter` + `AccessTokenService` security flow.
 - Only explicitly public endpoints may bypass authentication, for example health/info actuator
   endpoints.
 - Permissive `permitAll` behavior is allowed only for local development and must be profile/property
