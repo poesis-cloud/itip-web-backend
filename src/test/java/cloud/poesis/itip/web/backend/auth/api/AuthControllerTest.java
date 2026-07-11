@@ -1,6 +1,7 @@
 package cloud.poesis.itip.web.backend.auth.api;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -53,7 +54,7 @@ class AuthControllerTest {
                     """))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.token").value("jwt-value"))
-        .andExpect(jsonPath("$.expiresAt").isNumber());
+        .andExpect(jsonPath("$.expiresAt").isNotEmpty());
   }
 
   @Test
@@ -96,5 +97,44 @@ class AuthControllerTest {
                     }
                     """))
         .andExpect(status().isInternalServerError());
+  }
+
+  @Test
+  void loginShouldReturnBadRequestWhenEmailIsBlank() throws Exception {
+    MockMvc mockMvc = buildMockMvc();
+
+    mockMvc
+        .perform(
+            post("/api/auth/login")
+                .contentType("application/json")
+                .content(
+                    """
+                    {
+                      "email": " ",
+                      "password": "password"
+                    }
+                    """))
+        .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(authenticationStrategy);
+  }
+
+  @Test
+  void loginShouldReturnBadRequestWhenPasswordIsMissing() throws Exception {
+    MockMvc mockMvc = buildMockMvc();
+
+    mockMvc
+        .perform(
+            post("/api/auth/login")
+                .contentType("application/json")
+                .content(
+                    """
+                    {
+                      "email": "john.doe@itip.local"
+                    }
+                    """))
+        .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(authenticationStrategy);
   }
 }

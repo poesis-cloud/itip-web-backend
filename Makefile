@@ -4,6 +4,8 @@ SHELL := /bin/bash
 .PHONY: dev-check dev-up dev-down deploy-check prod-deploy package-helm run-api test verify
 
 -include .env.dev
+-include .env
+-include .env.dev
 
 NAMESPACE        ?= itip
 DEPLOY_ENV       ?= preprod

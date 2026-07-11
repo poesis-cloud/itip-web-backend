@@ -1,4 +1,9 @@
 databaseChangeLog:
+# Exception to generated-diff workflow:
+# This curated migration intentionally uses hand-authored SQL because it must
+# execute ordered data prechecks, enforce duplicate-active invariants, and
+# install trigger-based concurrency guards that are not reliably produced by
+# Liquibase diff for this integrity-hardening scenario.
 - changeSet:
     id: 0004-1-add-rbac-assignment-foreign-keys
     author: copilot
