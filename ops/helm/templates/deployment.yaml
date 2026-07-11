@@ -32,8 +32,10 @@ spec:
                 secretKeyRef:
                   name: {{ include "itip-web-backend.fullname" . }}-secret
                   key: DB_PASSWORD
+            {{- if .Values.env.SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI }}
             - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
               value: {{ .Values.env.SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI | quote }}
+            {{- end }}
             {{- if .Values.env.SPRING_PROFILES_ACTIVE }}
             - name: SPRING_PROFILES_ACTIVE
               value: {{ .Values.env.SPRING_PROFILES_ACTIVE | quote }}
