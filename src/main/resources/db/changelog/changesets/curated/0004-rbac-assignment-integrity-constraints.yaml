@@ -7,7 +7,91 @@ databaseChangeLog:
         splitStatements: false
         sql: |
           DO $$
+          DECLARE
+              v_orphans integer;
+              v_duplicates integer;
           BEGIN
+              SELECT COUNT(*)
+              INTO v_orphans
+              FROM account_role_assignment ara
+              LEFT JOIN account a ON a.id = ara.account_id
+              WHERE a.id IS NULL;
+              IF v_orphans > 0 THEN
+                  RAISE EXCEPTION 'RBAC precheck failed: % orphan account_role_assignment rows with unknown account_id', v_orphans;
+              END IF;
+
+              SELECT COUNT(*)
+              INTO v_orphans
+              FROM account_role_assignment ara
+              LEFT JOIN role r ON r.id = ara.role_id
+              WHERE r.id IS NULL;
+              IF v_orphans > 0 THEN
+                  RAISE EXCEPTION 'RBAC precheck failed: % orphan account_role_assignment rows with unknown role_id', v_orphans;
+              END IF;
+
+              SELECT COUNT(*)
+              INTO v_orphans
+              FROM account_role_assignment ara
+              LEFT JOIN account a ON a.id = ara.assigned_by
+              WHERE ara.assigned_by IS NOT NULL AND a.id IS NULL;
+              IF v_orphans > 0 THEN
+                  RAISE EXCEPTION 'RBAC precheck failed: % orphan account_role_assignment rows with unknown assigned_by', v_orphans;
+              END IF;
+
+              SELECT COUNT(*)
+              INTO v_orphans
+              FROM role_privilege_assignment rpa
+              LEFT JOIN role r ON r.id = rpa.role_id
+              WHERE r.id IS NULL;
+              IF v_orphans > 0 THEN
+                  RAISE EXCEPTION 'RBAC precheck failed: % orphan role_privilege_assignment rows with unknown role_id', v_orphans;
+              END IF;
+
+              SELECT COUNT(*)
+              INTO v_orphans
+              FROM role_privilege_assignment rpa
+              LEFT JOIN privilege p ON p.id = rpa.privilege_id
+              WHERE p.id IS NULL;
+              IF v_orphans > 0 THEN
+                  RAISE EXCEPTION 'RBAC precheck failed: % orphan role_privilege_assignment rows with unknown privilege_id', v_orphans;
+              END IF;
+
+              SELECT COUNT(*)
+              INTO v_orphans
+              FROM role_privilege_assignment rpa
+              LEFT JOIN account a ON a.id = rpa.assigned_by
+              WHERE rpa.assigned_by IS NOT NULL AND a.id IS NULL;
+              IF v_orphans > 0 THEN
+                  RAISE EXCEPTION 'RBAC precheck failed: % orphan role_privilege_assignment rows with unknown assigned_by', v_orphans;
+              END IF;
+
+              SELECT COUNT(*)
+              INTO v_duplicates
+              FROM (
+                  SELECT account_id, role_id
+                  FROM account_role_assignment
+                  WHERE revoked_at IS NULL
+                      AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+                  GROUP BY account_id, role_id
+                  HAVING COUNT(*) > 1
+              ) duplicates;
+              IF v_duplicates > 0 THEN
+                  RAISE EXCEPTION 'RBAC precheck failed: % duplicate active account_role_assignment rows', v_duplicates;
+              END IF;
+
+              SELECT COUNT(*)
+              INTO v_duplicates
+              FROM (
+                  SELECT role_id, privilege_id
+                  FROM role_privilege_assignment
+                  WHERE revoked_at IS NULL
+                  GROUP BY role_id, privilege_id
+                  HAVING COUNT(*) > 1
+              ) duplicates;
+              IF v_duplicates > 0 THEN
+                  RAISE EXCEPTION 'RBAC precheck failed: % duplicate active role_privilege_assignment rows', v_duplicates;
+              END IF;
+
               IF NOT EXISTS (
                   SELECT 1
                   FROM pg_constraint
@@ -77,9 +161,35 @@ databaseChangeLog:
     - sql:
         splitStatements: false
         sql: |
-          CREATE UNIQUE INDEX IF NOT EXISTS uq_account_role_assignment_active
-            ON account_role_assignment (account_id, role_id)
-            WHERE revoked_at IS NULL;
+          CREATE OR REPLACE FUNCTION tgf_reject_duplicate_active_account_role_assignment() RETURNS TRIGGER AS $$
+          BEGIN
+              IF NEW.revoked_at IS NOT NULL THEN
+                  RETURN NEW;
+              END IF;
+
+              IF NEW.expires_at IS NULL OR NEW.expires_at > CURRENT_TIMESTAMP THEN
+                  IF EXISTS (
+                      SELECT 1
+                      FROM account_role_assignment existing
+                      WHERE existing.account_id = NEW.account_id
+                        AND existing.role_id = NEW.role_id
+                        AND existing.revoked_at IS NULL
+                        AND (existing.expires_at IS NULL OR existing.expires_at > CURRENT_TIMESTAMP)
+                        AND (TG_OP = 'INSERT' OR existing.id <> NEW.id)
+                  ) THEN
+                      RAISE EXCEPTION 'duplicate active account_role_assignment for account_id=% role_id=%', NEW.account_id, NEW.role_id;
+                  END IF;
+              END IF;
+
+              RETURN NEW;
+          END;
+          $$ LANGUAGE plpgsql;
+
+          DROP TRIGGER IF EXISTS trg_account_role_assignment_reject_duplicate_active ON account_role_assignment;
+          CREATE TRIGGER trg_account_role_assignment_reject_duplicate_active
+          BEFORE INSERT OR UPDATE OF account_id, role_id, revoked_at, expires_at ON account_role_assignment
+          FOR EACH ROW
+          EXECUTE FUNCTION tgf_reject_duplicate_active_account_role_assignment();
 
           CREATE UNIQUE INDEX IF NOT EXISTS uq_role_privilege_assignment_active
             ON role_privilege_assignment (role_id, privilege_id)

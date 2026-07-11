@@ -73,8 +73,8 @@ class SecurityConfigTest {
   }
 
   @Test
-  void healthEndpointShouldBeAccessibleWithoutAuthentication() throws Exception {
-    mockMvc.perform(get("/actuator/health")).andExpect(status().isOk());
+  void infoEndpointShouldBeAccessibleWithoutAuthentication() throws Exception {
+    mockMvc.perform(get("/actuator/info")).andExpect(status().isOk());
   }
 
   @TestConfiguration

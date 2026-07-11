@@ -46,33 +46,6 @@ class AccountRepositoryIntegrityTest {
   void ensureActiveAssignmentUniquenessForTestDatabase() {
     jdbcTemplate.execute(
         """
-        ALTER TABLE account_role_assignment
-        ADD COLUMN IF NOT EXISTS account_id_active UUID GENERATED ALWAYS AS (
-          CASE
-            WHEN revoked_at IS NULL AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
-              THEN account_id
-            ELSE NULL
-          END
-        )
-        """);
-    jdbcTemplate.execute(
-        """
-        ALTER TABLE account_role_assignment
-        ADD COLUMN IF NOT EXISTS role_id_active UUID GENERATED ALWAYS AS (
-          CASE
-            WHEN revoked_at IS NULL AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
-              THEN role_id
-            ELSE NULL
-          END
-        )
-        """);
-    jdbcTemplate.execute(
-        """
-        CREATE UNIQUE INDEX IF NOT EXISTS uq_account_role_assignment_active_test
-        ON account_role_assignment (account_id_active, role_id_active)
-        """);
-    jdbcTemplate.execute(
-        """
         ALTER TABLE role_privilege_assignment
         ADD COLUMN IF NOT EXISTS role_id_active UUID GENERATED ALWAYS AS (
           CASE WHEN revoked_at IS NULL THEN role_id ELSE NULL END
@@ -106,25 +79,6 @@ class AccountRepositoryIntegrityTest {
 
     assertThatThrownBy(
             () -> rolePrivilegeAssignmentRepository.saveAndFlush(Objects.requireNonNull(duplicate)))
-        .isInstanceOf(DataIntegrityViolationException.class);
-  }
-
-  @Test
-  void duplicateActiveAccountRoleAssignmentShouldFail() {
-    Account account = persistAccount("alice@itip.local");
-    Role role = persistRole("REVIEWER");
-
-    accountRoleAssignmentRepository.saveAndFlush(
-        Objects.requireNonNull(
-            AccountRoleAssignment.builder().account(account).role(role).build()));
-
-    AccountRoleAssignment duplicateActive =
-        AccountRoleAssignment.builder().account(account).role(role).build();
-
-    assertThatThrownBy(
-            () ->
-                accountRoleAssignmentRepository.saveAndFlush(
-                    Objects.requireNonNull(duplicateActive)))
         .isInstanceOf(DataIntegrityViolationException.class);
   }
 

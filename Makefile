@@ -38,7 +38,9 @@ dev-up:
 	kubectl get ns $(NAMESPACE) >/dev/null 2>&1 || kubectl create ns $(NAMESPACE) >/dev/null
 	helm upgrade --install $(RELEASE) $(CHART) -n $(NAMESPACE) --create-namespace --wait --timeout 5m0s \
 	-f $(CHART)/environments/dev/values.yaml \
-	--set persistence.enabled=true
+	--set persistence.enabled=true \
+	--set-string secrets.DB_PASSWORD="$${DB_PASSWORD:-dev-password}" \
+	--set-string secrets.ITIP_SECURITY_JWT_SECRET="$${ITIP_SECURITY_JWT_SECRET:-dev-jwt-secret-0123456789abcdef0123456789}"
 	@echo "itip-web-backend deployed. Run: make run-api"
 
 dev-down:
