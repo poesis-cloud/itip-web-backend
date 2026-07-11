@@ -6,8 +6,23 @@ Spring Boot backend service for the ITIP Web Frontend (BFF layer). Exposes REST 
 ## Stack
 
 - Java 25 / Spring Boot 3.x
-- Spring Web, Spring Security (OAuth2 Resource Server), Spring Actuator
+- Spring Web, Spring Security (custom JWT filter), Spring Actuator
 - Kubernetes / Helm deployment
+
+## Local Docker stack
+
+The module now ships with a `docker-compose.yml` at the repository root of `itip-web-backend`.
+
+```bash
+docker compose up --build
+```
+
+This starts:
+
+- PostgreSQL 17
+- the Spring Boot API container
+
+The API reads its database connection from `SPRING_DATASOURCE_*`, runs Liquibase at startup, and is configured to start without an external OIDC server for local work.
 
 ## Liquibase workflow
 
@@ -18,10 +33,7 @@ mvn liquibase:diff
 mvn liquibase:update
 ```
 
-The diff configuration is defined in the repository-root `liquibase.properties` so database
-credentials are not packaged into the application artifact. Generated diffs are written under
-`target/generated-liquibase/`; promote reviewed changes into
-`src/main/resources/db/changelog/changesets/curated/` before runtime use.
+The diff configuration is defined in `src/main/resources/liquibase.properties` and generates new changelog files under `src/main/resources/db/changelog/changesets/generated/`.
 
 ## Local development
 

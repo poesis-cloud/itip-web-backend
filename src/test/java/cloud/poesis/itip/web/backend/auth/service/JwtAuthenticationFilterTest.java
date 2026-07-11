@@ -17,6 +17,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 @ExtendWith(MockitoExtension.class)
 class JwtAuthenticationFilterTest {
@@ -147,6 +148,22 @@ class JwtAuthenticationFilterTest {
     when(accessTokenService.extractEmail("invalid-token")).thenReturn("auth@itip.local");
     when(accountService.loadUserByUsername("auth@itip.local")).thenReturn(userDetails);
     when(accessTokenService.isTokenValid("invalid-token", userDetails)).thenReturn(false);
+
+    jwtAuthenticationFilter.doFilter(request, response, chain);
+
+    assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+  }
+
+  @Test
+  void shouldSkipWhenTokenSubjectAccountDoesNotExist() throws Exception {
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    request.addHeader("Authorization", "Bearer unknown-user-token");
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    MockFilterChain chain = new MockFilterChain();
+
+    when(accessTokenService.extractEmail("unknown-user-token")).thenReturn("missing@itip.local");
+    when(accountService.loadUserByUsername("missing@itip.local"))
+        .thenThrow(new UsernameNotFoundException("not found"));
 
     jwtAuthenticationFilter.doFilter(request, response, chain);
 

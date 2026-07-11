@@ -14,6 +14,7 @@ import lombok.Getter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 @Service
 public final class AccessTokenService {
@@ -24,6 +25,14 @@ public final class AccessTokenService {
   public AccessTokenService(
       @Value("${itip.security.jwt.secret}") String jwtSecret,
       @Value("${itip.security.jwt.expiration-ms}") long expirationMs) {
+    if (!StringUtils.hasText(jwtSecret)) {
+      throw new IllegalStateException(
+          "Property itip.security.jwt.secret must be configured and non-empty.");
+    }
+    if (jwtSecret.getBytes(StandardCharsets.UTF_8).length < 32) {
+      throw new IllegalStateException(
+          "Property itip.security.jwt.secret must be at least 32 bytes for HS256 signing.");
+    }
     this.signingKey = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
     this.expirationMs = expirationMs;
   }

@@ -168,6 +168,8 @@ databaseChangeLog:
               END IF;
 
               IF NEW.expires_at IS NULL OR NEW.expires_at > CURRENT_TIMESTAMP THEN
+                  PERFORM pg_advisory_xact_lock(hashtext(NEW.account_id::text || ':' || NEW.role_id::text));
+
                   IF EXISTS (
                       SELECT 1
                       FROM account_role_assignment existing

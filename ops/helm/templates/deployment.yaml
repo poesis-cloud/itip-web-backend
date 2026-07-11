@@ -34,6 +34,10 @@ spec:
                   key: DB_PASSWORD
             - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
               value: {{ .Values.env.SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI | quote }}
+            {{- if .Values.env.SPRING_PROFILES_ACTIVE }}
+            - name: SPRING_PROFILES_ACTIVE
+              value: {{ .Values.env.SPRING_PROFILES_ACTIVE | quote }}
+            {{- end }}
             - name: ITIP_SECURITY_PERMIT_ALL
               value: {{ .Values.env.ITIP_SECURITY_PERMIT_ALL | quote }}
             - name: ITIP_SECURITY_JWT_EXPIRATION_MS

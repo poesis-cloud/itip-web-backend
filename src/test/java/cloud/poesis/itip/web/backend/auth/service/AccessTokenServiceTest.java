@@ -189,4 +189,18 @@ class AccessTokenServiceTest {
 
     assertThat(service.isTokenValid(tokenWithoutExpiration, userDetails)).isFalse();
   }
+
+  @Test
+  void constructorShouldFailWhenSecretIsBlank() {
+    assertThatThrownBy(() -> new AccessTokenService("   ", 3600000L))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("itip.security.jwt.secret");
+  }
+
+  @Test
+  void constructorShouldFailWhenSecretIsTooShort() {
+    assertThatThrownBy(() -> new AccessTokenService("short-secret", 3600000L))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("at least 32 bytes");
+  }
 }
