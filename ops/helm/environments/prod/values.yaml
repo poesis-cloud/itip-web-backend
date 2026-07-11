@@ -15,8 +15,6 @@ fullnameOverride: ""
 service:
   type: ClusterIP
   port: 8080
-  name: itip-web-backend
-  namespace: poesis
 
 ingress:
   enabled: false

@@ -1,5 +1,6 @@
 package cloud.poesis.itip.web.backend.config;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -13,13 +14,18 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @ActiveProfiles("test")
 @SpringBootTest
 @AutoConfigureMockMvc
+@Import(SecurityConfigTest.ProtectedTestProbeController.class)
 class SecurityConfigTest {
 
   @Autowired private MockMvc mockMvc;
@@ -51,7 +57,9 @@ class SecurityConfigTest {
 
   @Test
   void nonAuthEndpointsShouldRequireAuthentication() throws Exception {
-    mockMvc.perform(get("/api/private")).andExpect(status().is4xxClientError());
+    mockMvc
+        .perform(get("/api/test-protected-probe"))
+        .andExpect(result -> assertThat(result.getResponse().getStatus()).isIn(401, 403));
   }
 
   @Test
@@ -67,5 +75,16 @@ class SecurityConfigTest {
   @Test
   void healthEndpointShouldBeAccessibleWithoutAuthentication() throws Exception {
     mockMvc.perform(get("/actuator/health")).andExpect(status().isOk());
+  }
+
+  @TestConfiguration
+  static class ProtectedTestProbeController {
+    @RestController
+    static class ProbeController {
+      @GetMapping("/api/test-protected-probe")
+      String protectedProbe() {
+        return "protected";
+      }
+    }
   }
 }

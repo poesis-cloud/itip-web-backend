@@ -1,0 +1,86 @@
+databaseChangeLog:
+- changeSet:
+    id: 0004-1-add-rbac-assignment-foreign-keys
+    author: copilot
+    changes:
+    - sql:
+        splitStatements: false
+        sql: |
+          DO $$
+          BEGIN
+              IF NOT EXISTS (
+                  SELECT 1
+                  FROM pg_constraint
+                  WHERE conname = 'fk_account_role_assignment_account'
+              ) THEN
+                  ALTER TABLE account_role_assignment
+                  ADD CONSTRAINT fk_account_role_assignment_account
+                  FOREIGN KEY (account_id) REFERENCES account(id);
+              END IF;
+
+              IF NOT EXISTS (
+                  SELECT 1
+                  FROM pg_constraint
+                  WHERE conname = 'fk_account_role_assignment_role'
+              ) THEN
+                  ALTER TABLE account_role_assignment
+                  ADD CONSTRAINT fk_account_role_assignment_role
+                  FOREIGN KEY (role_id) REFERENCES role(id);
+              END IF;
+
+              IF NOT EXISTS (
+                  SELECT 1
+                  FROM pg_constraint
+                  WHERE conname = 'fk_account_role_assignment_assigned_by'
+              ) THEN
+                  ALTER TABLE account_role_assignment
+                  ADD CONSTRAINT fk_account_role_assignment_assigned_by
+                  FOREIGN KEY (assigned_by) REFERENCES account(id);
+              END IF;
+
+              IF NOT EXISTS (
+                  SELECT 1
+                  FROM pg_constraint
+                  WHERE conname = 'fk_role_privilege_assignment_privilege'
+              ) THEN
+                  ALTER TABLE role_privilege_assignment
+                  ADD CONSTRAINT fk_role_privilege_assignment_privilege
+                  FOREIGN KEY (privilege_id) REFERENCES privilege(id);
+              END IF;
+
+              IF NOT EXISTS (
+                  SELECT 1
+                  FROM pg_constraint
+                  WHERE conname = 'fk_role_privilege_assignment_role'
+              ) THEN
+                  ALTER TABLE role_privilege_assignment
+                  ADD CONSTRAINT fk_role_privilege_assignment_role
+                  FOREIGN KEY (role_id) REFERENCES role(id);
+              END IF;
+
+              IF NOT EXISTS (
+                  SELECT 1
+                  FROM pg_constraint
+                  WHERE conname = 'fk_role_privilege_assignment_assigned_by'
+              ) THEN
+                  ALTER TABLE role_privilege_assignment
+                  ADD CONSTRAINT fk_role_privilege_assignment_assigned_by
+                  FOREIGN KEY (assigned_by) REFERENCES account(id);
+              END IF;
+          END
+          $$;
+
+- changeSet:
+    id: 0004-2-add-rbac-assignment-active-uniqueness
+    author: copilot
+    changes:
+    - sql:
+        splitStatements: false
+        sql: |
+          CREATE UNIQUE INDEX IF NOT EXISTS uq_account_role_assignment_active
+            ON account_role_assignment (account_id, role_id)
+            WHERE revoked_at IS NULL;
+
+          CREATE UNIQUE INDEX IF NOT EXISTS uq_role_privilege_assignment_active
+            ON role_privilege_assignment (role_id, privilege_id)
+            WHERE revoked_at IS NULL;

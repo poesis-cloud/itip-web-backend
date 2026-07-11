@@ -5,7 +5,7 @@ SHELL := /bin/bash
 
 -include .env.dev
 
-NAMESPACE        ?= poesis
+NAMESPACE        ?= itip
 DEPLOY_ENV       ?= preprod
 RELEASE          ?= itip-web-backend
 
