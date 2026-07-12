@@ -1,11 +1,30 @@
 spring:
   application:
     name: itip-web-backend
+  datasource:
+    url: ${DB_URL:${SPRING_DATASOURCE_URL:}}
+    username: ${DB_USER:${SPRING_DATASOURCE_USERNAME:}}
+    password: ${DB_PASSWORD:${SPRING_DATASOURCE_PASSWORD:}}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+    properties:
+      hibernate:
+        globally_quoted_identifiers: false
+        physical_naming_strategy: org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+
+itip:
   security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: ${OIDC_ISSUER_URI:http://localhost:9000/realms/sie}
+    permit-all: ${ITIP_SECURITY_PERMIT_ALL:false}
+    jwt:
+      secret: ${ITIP_SECURITY_JWT_SECRET:}
+      expiration-ms: ${ITIP_SECURITY_JWT_EXPIRATION_MS:3600000}
 
 server:
   port: ${SERVER_PORT:8080}
@@ -17,4 +36,4 @@ management:
         include: health,info,prometheus
   endpoint:
     health:
-      show-details: always
+      show-details: when-authorized

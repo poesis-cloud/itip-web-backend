@@ -28,9 +28,14 @@ ingress:
   tls: []
 
 env:
-  OIDC_ISSUER_URI: https://login.microsoftonline.com/<prod-tenant-id>/v2.0
-  SIE_DM_BASE_URL: http://sie-definition-manager.sie.svc.cluster.local:8080
-  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.monitoring.svc.cluster.local:4317
+  DB_URL: jdbc:postgresql://definitiondatabase:5432/itip_web_backend
+  DB_USER: itip_app
+  ITIP_SECURITY_PERMIT_ALL: "false"
+  ITIP_SECURITY_JWT_EXPIRATION_MS: "3600000"
+
+secrets:
+  DB_PASSWORD: ""
+  ITIP_SECURITY_JWT_SECRET: ""
 
 resources:
   requests:

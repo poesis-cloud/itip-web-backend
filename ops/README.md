@@ -13,7 +13,7 @@ Install with defaults:
 ```bash
 helm upgrade --install itip-web-backend \
   itip-web-backend/ops/helm \
-  -n sie --create-namespace
+  -n itip --create-namespace
 ```
 
 Environment values:
@@ -29,14 +29,15 @@ Recommended deploy command:
 ```bash
 helm upgrade --install itip-web-backend \
   itip-web-backend/ops/helm \
-  -n sie --create-namespace \
+  -n itip --create-namespace \
   -f itip-web-backend/ops/helm/environments/preprod/values.yaml
 ```
 
 Secrets policy:
 
 - Never commit production secrets in values files.
-- Inject secrets at deploy time (`--set-string`) or from a cluster secret manager.
+- Inject `secrets.DB_PASSWORD` and `secrets.ITIP_SECURITY_JWT_SECRET` at deploy time
+  (`--set-string`) or from a cluster secret manager.
 
 Schema validation:
 
@@ -44,7 +45,9 @@ Schema validation:
 
 ```bash
 helm lint itip-web-backend/ops/helm \
-  -f itip-web-backend/ops/helm/environments/preprod/values.yaml
+  -f itip-web-backend/ops/helm/environments/preprod/values.yaml \
+  --set-string secrets.DB_PASSWORD=lint-only \
+  --set-string secrets.ITIP_SECURITY_JWT_SECRET=lint-only-lint-only-lint-only-1234
 ```
 
 ## Dev deployment

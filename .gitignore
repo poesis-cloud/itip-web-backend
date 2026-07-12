@@ -24,6 +24,9 @@ logs/
 # Local env overrides (never commit secrets)
 .env.dev
 
+# Liquibase scratch diffs (runtime uses curated changesets only)
+src/main/resources/db/changelog/changesets/generated/
+
 # Helm dependency cache
 ops/helm/charts/
 ops/helm/Chart.lock

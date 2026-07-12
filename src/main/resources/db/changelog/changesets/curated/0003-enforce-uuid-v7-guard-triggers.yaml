@@ -1,0 +1,50 @@
+databaseChangeLog:
+- changeSet:
+    id: 0003-1-create-uuid-v7-guard-functions
+    author: copilot
+    changes:
+    - sql:
+        splitStatements: false
+        sql: |
+          CREATE OR REPLACE FUNCTION tgf_reject_non_uuid_v7() RETURNS TRIGGER AS $$
+          BEGIN
+              -- UUID textual form: xxxxxxxx-xxxx-Mxxx-Nxxx-xxxxxxxxxxxx
+              -- v7 -> M='7', RFC variant -> N in {8,9,a,b}
+              IF NEW.id IS NULL THEN
+                  RETURN NEW;
+              END IF;
+
+              IF NEW.id::text !~* '^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' THEN
+                  RAISE EXCEPTION 'id must be UUIDv7 (got: %)', NEW.id
+                      USING ERRCODE = 'check_violation';
+              END IF;
+
+              RETURN NEW;
+          END;
+          $$ LANGUAGE plpgsql;
+
+          CREATE OR REPLACE FUNCTION tgf_attach_uuid_v7_guard_trigger(p_table_name text) RETURNS void AS $$
+          DECLARE
+              v_trigger_name text := format('trg_%s_reject_non_uuid_v7', p_table_name);
+          BEGIN
+              EXECUTE format('DROP TRIGGER IF EXISTS %I ON %I', v_trigger_name, p_table_name);
+              EXECUTE format(
+                  'CREATE TRIGGER %I BEFORE INSERT OR UPDATE OF id ON %I FOR EACH ROW EXECUTE FUNCTION tgf_reject_non_uuid_v7()',
+                  v_trigger_name,
+                  p_table_name
+              );
+          END;
+          $$ LANGUAGE plpgsql;
+
+- changeSet:
+    id: 0003-2-attach-uuid-v7-guard-triggers
+    author: copilot
+    changes:
+    - sql:
+        splitStatements: false
+        sql: |
+          SELECT tgf_attach_uuid_v7_guard_trigger('account');
+          SELECT tgf_attach_uuid_v7_guard_trigger('role');
+          SELECT tgf_attach_uuid_v7_guard_trigger('privilege');
+          SELECT tgf_attach_uuid_v7_guard_trigger('account_role_assignment');
+          SELECT tgf_attach_uuid_v7_guard_trigger('role_privilege_assignment');

@@ -1,0 +1,194 @@
+databaseChangeLog:
+- changeSet:
+    id: 1782856511083-1
+    author: root (generated)
+    changes:
+    - createTable:
+        columns:
+        - column:
+            constraints:
+              nullable: false
+              primaryKey: true
+              primaryKeyName: accountPK
+            name: id
+            type: UUID
+        - column:
+            constraints:
+              nullable: false
+            name: created_at
+            type: TIMESTAMP(6) WITH TIME ZONE
+        - column:
+            constraints:
+              nullable: false
+            name: email
+            type: VARCHAR(255)
+        - column:
+            constraints:
+              nullable: false
+            name: enabled
+            type: BOOLEAN
+        - column:
+            name: full_name
+            type: VARCHAR(255)
+        - column:
+            constraints:
+              nullable: false
+            name: password_hash
+            type: VARCHAR(255)
+        - column:
+            constraints:
+              nullable: false
+            name: updated_at
+            type: TIMESTAMP(6) WITH TIME ZONE
+        tableName: account
+- changeSet:
+    id: 1782856511083-2
+    author: root (generated)
+    changes:
+    - createTable:
+        columns:
+        - column:
+            constraints:
+              nullable: false
+              primaryKey: true
+              primaryKeyName: account_role_assignmentPK
+            name: id
+            type: UUID
+        - column:
+            constraints:
+              nullable: false
+            name: assigned_at
+            type: TIMESTAMP(6) WITH TIME ZONE
+        - column:
+            name: expires_at
+            type: TIMESTAMP(6) WITH TIME ZONE
+        - column:
+            name: revoked_at
+            type: TIMESTAMP(6) WITH TIME ZONE
+        - column:
+            constraints:
+              nullable: false
+            name: account_id
+            type: UUID
+        - column:
+            name: assigned_by
+            type: UUID
+        - column:
+            constraints:
+              nullable: false
+            name: role_id
+            type: UUID
+        tableName: account_role_assignment
+- changeSet:
+    id: 1782856511083-3
+    author: root (generated)
+    changes:
+    - createTable:
+        columns:
+        - column:
+            constraints:
+              nullable: false
+              primaryKey: true
+              primaryKeyName: privilegePK
+            name: id
+            type: UUID
+        - column:
+            constraints:
+              nullable: false
+            name: code
+            type: VARCHAR(255)
+        - column:
+            name: description
+            type: VARCHAR(255)
+        tableName: privilege
+- changeSet:
+    id: 1782856511083-4
+    author: root (generated)
+    changes:
+    - createTable:
+        columns:
+        - column:
+            constraints:
+              nullable: false
+              primaryKey: true
+              primaryKeyName: rolePK
+            name: id
+            type: UUID
+        - column:
+            constraints:
+              nullable: false
+            name: created_at
+            type: TIMESTAMP(6) WITH TIME ZONE
+        - column:
+            name: description
+            type: VARCHAR(255)
+        - column:
+            constraints:
+              nullable: false
+            name: name
+            type: VARCHAR(255)
+        - column:
+            constraints:
+              nullable: false
+            name: updated_at
+            type: TIMESTAMP(6) WITH TIME ZONE
+        tableName: role
+- changeSet:
+    id: 1782856511083-5
+    author: root (generated)
+    changes:
+    - createTable:
+        columns:
+        - column:
+            constraints:
+              nullable: false
+              primaryKey: true
+              primaryKeyName: role_privilege_assignmentPK
+            name: id
+            type: UUID
+        - column:
+            constraints:
+              nullable: false
+            name: assigned_at
+            type: TIMESTAMP(6) WITH TIME ZONE
+        - column:
+            name: revoked_at
+            type: TIMESTAMP(6) WITH TIME ZONE
+        - column:
+            name: assigned_by
+            type: UUID
+        - column:
+            constraints:
+              nullable: false
+            name: privilege_id
+            type: UUID
+        - column:
+            constraints:
+              nullable: false
+            name: role_id
+            type: UUID
+        tableName: role_privilege_assignment
+- changeSet:
+    id: 1782856511083-6
+    author: root (generated)
+    changes:
+    - addUniqueConstraint:
+        columnNames: email
+        constraintName: UC_ACCOUNTEMAIL_COL
+        tableName: account
+- changeSet:
+    id: 1782856511083-7
+    author: root (generated)
+    changes:
+    - addUniqueConstraint:
+        columnNames: code
+        constraintName: UC_PRIVILEGECODE_COL
+        tableName: privilege
+- changeSet:
+    id: 1782856511083-8
+    author: root (generated)
+    changes:
+    - addUniqueConstraint:
+        columnNames: name
+        constraintName: UC_ROLENAME_COL
+        tableName: role

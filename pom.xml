@@ -18,13 +18,24 @@
   <description>ITIP Web Backend — BFF service for itip-web-frontend</description>
 
   <properties>
-    <java.version>21</java.version>
+    <java.version>25</java.version>
+    <liquibase.version>5.0.0</liquibase.version>
+    <liquibase.hibernate.version>5.0.0</liquibase.hibernate.version>
+    <postgresql.version>42.7.7</postgresql.version>
+    <h2.version>2.3.232</h2.version>
+    <spring.framework.version>6.2.17</spring.framework.version>
+    <lombok.version>1.18.42</lombok.version>
+    <maven.build.timestamp.format>yyyy-MM-dd_HH-mm-ss</maven.build.timestamp.format>
   </properties>
 
   <dependencies>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-jpa</artifactId>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -47,6 +58,16 @@
       <artifactId>spring-boot-starter-actuator</artifactId>
     </dependency>
     <dependency>
+      <groupId>org.liquibase</groupId>
+      <artifactId>liquibase-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <version>${postgresql.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
       <groupId>org.springdoc</groupId>
       <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
       <version>2.8.16</version>
@@ -59,6 +80,29 @@
       <groupId>io.opentelemetry</groupId>
       <artifactId>opentelemetry-exporter-otlp</artifactId>
     </dependency>
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <version>${lombok.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-api</artifactId>
+      <version>0.12.6</version>
+    </dependency>
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-impl</artifactId>
+      <version>0.12.6</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-jackson</artifactId>
+      <version>0.12.6</version>
+      <scope>runtime</scope>
+    </dependency>
 
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -70,13 +114,79 @@
       <artifactId>spring-security-test</artifactId>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
+      <version>${h2.version}</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
     <plugins>
       <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <annotationProcessorPaths>
+            <path>
+              <groupId>org.projectlombok</groupId>
+              <artifactId>lombok</artifactId>
+              <version>${lombok.version}</version>
+            </path>
+          </annotationProcessorPaths>
+          <testAnnotationProcessorPaths>
+            <path>
+              <groupId>org.projectlombok</groupId>
+              <artifactId>lombok</artifactId>
+              <version>${lombok.version}</version>
+            </path>
+          </testAnnotationProcessorPaths>
+        </configuration>
+      </plugin>
+      <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.liquibase</groupId>
+        <artifactId>liquibase-maven-plugin</artifactId>
+        <version>${liquibase.version}</version>
+        <configuration>
+          <searchPath>${project.basedir},${project.basedir}/src/main/resources</searchPath>
+          <propertyFile>liquibase.properties</propertyFile>
+          <url>${env.LIQUIBASE_URL}</url>
+          <username>${env.LIQUIBASE_USERNAME}</username>
+          <password>${env.LIQUIBASE_PASSWORD}</password>
+          <diffTypes>tables,columns,sequences,primaryKeys,uniqueConstraints,indexes</diffTypes>
+          <diffChangeLogFile>${project.build.directory}/generated-liquibase/db.changelog-diff-${maven.build.timestamp}.yaml</diffChangeLogFile>
+          <outputChangeLogFile>${project.build.directory}/generated-liquibase/db.changelog-output-${maven.build.timestamp}.yaml</outputChangeLogFile>
+          <outputDefaultCatalog>false</outputDefaultCatalog>
+          <outputDefaultSchema>false</outputDefaultSchema>
+          <diffExcludeObjects>checkConstraint</diffExcludeObjects>
+        </configuration>
+        <dependencies>
+          <dependency>
+            <groupId>org.liquibase.ext</groupId>
+            <artifactId>liquibase-hibernate6</artifactId>
+            <version>${liquibase.hibernate.version}</version>
+          </dependency>
+          <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+            <version>${spring.framework.version}</version>
+          </dependency>
+          <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-orm</artifactId>
+            <version>${spring.framework.version}</version>
+          </dependency>
+          <dependency>
+            <groupId>jakarta.validation</groupId>
+            <artifactId>jakarta.validation-api</artifactId>
+            <version>3.0.2</version>
+          </dependency>
+        </dependencies>
       </plugin>
       <plugin>
         <groupId>org.jacoco</groupId>
@@ -171,7 +281,7 @@
             <configuration>
               <rules>
                 <requireJavaVersion>
-                  <version>[21,)</version>
+                  <version>[25,)</version>
                 </requireJavaVersion>
                 <requireMavenVersion>
                   <version>[3.6.3,)</version>
@@ -205,31 +315,6 @@
             <trimTrailingWhitespace/>
             <endWithNewline/>
           </java>
-          <yaml>
-            <includes>
-              <include>**/*.yaml</include>
-            </includes>
-            <excludes>
-              <exclude>target/**</exclude>
-              <exclude>ops/helm/templates/**</exclude>
-            </excludes>
-            <prettier>
-              <prettierVersion>3.3.3</prettierVersion>
-            </prettier>
-          </yaml>
-          <formats>
-            <format>
-              <includes>
-                <include>**/*.md</include>
-              </includes>
-              <excludes>
-                <exclude>target/**</exclude>
-              </excludes>
-              <prettier>
-                <prettierVersion>3.3.3</prettierVersion>
-              </prettier>
-            </format>
-          </formats>
         </configuration>
       </plugin>
       <plugin>
