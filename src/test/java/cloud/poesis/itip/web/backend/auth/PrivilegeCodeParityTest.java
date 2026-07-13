@@ -1,6 +1,7 @@
 package cloud.poesis.itip.web.backend.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -32,6 +33,12 @@ import org.junit.jupiter.api.Test;
  * <p>There are currently no method-security annotations, so the "used" set is empty and the gate
  * passes trivially. It is armed for the first future gated endpoint: the moment someone gates on a
  * code that is not seeded, this test fails and lists the offending codes.
+ *
+ * <p><b>Fail-loud, never vacuous.</b> The gate is only meaningful if it can actually read the
+ * inputs it scans. If the {@code src/main/java} source root cannot be located, or the seed CSV
+ * cannot be found on the classpath, the test fails with a clear message instead of silently
+ * treating "no sources found" as "no violations" — otherwise G3 would be silently disabled in any
+ * environment where sources or seeds are unavailable at runtime.
  */
 class PrivilegeCodeParityTest {
 
@@ -86,7 +93,10 @@ class PrivilegeCodeParityTest {
   private Set<String> collectAnnotatedPrivilegeCodes() throws IOException {
     Set<String> codes = new LinkedHashSet<>();
     if (!Files.isDirectory(MAIN_JAVA)) {
-      return codes;
+      fail(
+          "Cannot locate %s to scan for @PreAuthorize codes — G3 parity gate would be silently"
+              + " disabled",
+          MAIN_JAVA);
     }
     try (Stream<Path> files = Files.walk(MAIN_JAVA)) {
       for (Path file : files.filter(p -> p.toString().endsWith(".java")).toList()) {
