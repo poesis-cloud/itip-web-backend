@@ -27,10 +27,6 @@ databaseChangeLog:
         tableName: tmp_structural_privileges
         file: ../../data/structural-privileges.csv
         relativeToChangelogFile: true
-        columns:
-        - column:
-            name: code
-            type: STRING
     - sql:
         sql: INSERT INTO privilege (code) SELECT code FROM tmp_structural_privileges ON CONFLICT (code) DO NOTHING;
     - dropTable:
