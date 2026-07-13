@@ -11,6 +11,7 @@ databaseChangeLog:
 - changeSet:
     id: 0005-1-seed-structural-privileges
     author: copilot
+    dbms: postgresql
     runOnChange: true
     comment: Seed structural privilege codes (idempotent, code-only; privilege has no description column).
     changes:
