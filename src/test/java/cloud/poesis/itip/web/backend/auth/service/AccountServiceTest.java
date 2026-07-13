@@ -9,6 +9,7 @@ import cloud.poesis.itip.web.backend.auth.entity.AccountRoleAssignment;
 import cloud.poesis.itip.web.backend.auth.entity.Privilege;
 import cloud.poesis.itip.web.backend.auth.entity.Role;
 import cloud.poesis.itip.web.backend.auth.entity.RolePrivilegeAssignment;
+import cloud.poesis.itip.web.backend.auth.model.AccountProfile;
 import cloud.poesis.itip.web.backend.auth.repository.AccountRepository;
 import java.time.Instant;
 import java.util.Set;
@@ -333,5 +334,143 @@ class AccountServiceTest {
     assertThat(userDetails.getAuthorities())
         .extracting("authority")
         .containsExactlyInAnyOrder("READ_USER");
+  }
+
+  @Test
+  void describeAccountShouldReturnIdentityRolesAndPrivilegesWithTemporalFiltering() {
+    UUID accountId = UUID.randomUUID();
+
+    Privilege readPrivilege = Privilege.builder().id(UUID.randomUUID()).code("READ_USER").build();
+    Privilege writePrivilege = Privilege.builder().id(UUID.randomUUID()).code("WRITE_USER").build();
+    Privilege revokedPrivilege =
+        Privilege.builder().id(UUID.randomUUID()).code("DELETE_USER").build();
+
+    Role adminRole =
+        Role.builder()
+            .id(UUID.randomUUID())
+            .name("ADMIN")
+            .rolePrivilegeAssignments(
+                Set.of(
+                    RolePrivilegeAssignment.builder()
+                        .id(UUID.randomUUID())
+                        .privilege(writePrivilege)
+                        .build(),
+                    RolePrivilegeAssignment.builder()
+                        .id(UUID.randomUUID())
+                        .privilege(revokedPrivilege)
+                        .unassignedAt(Instant.now())
+                        .build()))
+            .build();
+
+    Role viewerRole =
+        Role.builder()
+            .id(UUID.randomUUID())
+            .name("VIEWER")
+            .rolePrivilegeAssignments(
+                Set.of(
+                    RolePrivilegeAssignment.builder()
+                        .id(UUID.randomUUID())
+                        .privilege(readPrivilege)
+                        .build()))
+            .build();
+
+    Privilege revokedRolePrivilege =
+        Privilege.builder().id(UUID.randomUUID()).code("REVOKED_ROLE_PRIV").build();
+    Role revokedRole =
+        Role.builder()
+            .id(UUID.randomUUID())
+            .name("REVOKED_ROLE")
+            .rolePrivilegeAssignments(
+                Set.of(
+                    RolePrivilegeAssignment.builder()
+                        .id(UUID.randomUUID())
+                        .privilege(revokedRolePrivilege)
+                        .build()))
+            .build();
+
+    Privilege expiredRolePrivilege =
+        Privilege.builder().id(UUID.randomUUID()).code("EXPIRED_ROLE_PRIV").build();
+    Role expiredRole =
+        Role.builder()
+            .id(UUID.randomUUID())
+            .name("EXPIRED_ROLE")
+            .rolePrivilegeAssignments(
+                Set.of(
+                    RolePrivilegeAssignment.builder()
+                        .id(UUID.randomUUID())
+                        .privilege(expiredRolePrivilege)
+                        .build()))
+            .build();
+
+    Account account =
+        Account.builder()
+            .id(accountId)
+            .email("john.doe@itip.local")
+            .fullName("John Doe")
+            .passwordHash("hashed-password")
+            .enabled(true)
+            .accountRoleAssignments(
+                Set.of(
+                    AccountRoleAssignment.builder().id(UUID.randomUUID()).role(adminRole).build(),
+                    AccountRoleAssignment.builder()
+                        .id(UUID.randomUUID())
+                        .role(viewerRole)
+                        .expiresAt(Instant.now().plusSeconds(300))
+                        .build(),
+                    AccountRoleAssignment.builder()
+                        .id(UUID.randomUUID())
+                        .role(revokedRole)
+                        .unassignedAt(Instant.now())
+                        .build(),
+                    AccountRoleAssignment.builder()
+                        .id(UUID.randomUUID())
+                        .role(expiredRole)
+                        .expiresAt(Instant.now().minusSeconds(10))
+                        .build()))
+            .build();
+
+    when(accountRepository.findByEmailWithRolesAndPrivileges("john.doe@itip.local"))
+        .thenReturn(java.util.Optional.of(account));
+
+    AccountProfile profile = accountService.describeAccount("john.doe@itip.local");
+
+    assertThat(profile.getId()).isEqualTo(accountId);
+    assertThat(profile.getEmail()).isEqualTo("john.doe@itip.local");
+    assertThat(profile.getFullName()).isEqualTo("John Doe");
+    assertThat(profile.getRoles()).containsExactly("ADMIN", "VIEWER");
+    assertThat(profile.getPrivileges()).containsExactly("READ_USER", "WRITE_USER");
+  }
+
+  @Test
+  void describeAccountShouldReturnEmptyRolesAndPrivilegesForNullAssignments() {
+    Account account =
+        Account.builder()
+            .id(UUID.randomUUID())
+            .email("empty@itip.local")
+            .fullName(null)
+            .passwordHash("hashed-password")
+            .enabled(true)
+            .accountRoleAssignments(null)
+            .build();
+
+    when(accountRepository.findByEmailWithRolesAndPrivileges("empty@itip.local"))
+        .thenReturn(java.util.Optional.of(account));
+
+    AccountProfile profile = accountService.describeAccount("empty@itip.local");
+
+    assertThat(profile.getEmail()).isEqualTo("empty@itip.local");
+    assertThat(profile.getFullName()).isNull();
+    assertThat(profile.getRoles()).isEmpty();
+    assertThat(profile.getPrivileges()).isEmpty();
+  }
+
+  @Test
+  void describeAccountShouldThrowWhenAccountNotFound() {
+    when(accountRepository.findByEmailWithRolesAndPrivileges("missing@itip.local"))
+        .thenReturn(java.util.Optional.empty());
+
+    assertThatThrownBy(() -> accountService.describeAccount("missing@itip.local"))
+        .isInstanceOf(UsernameNotFoundException.class)
+        .hasMessageContaining("missing@itip.local");
   }
 }

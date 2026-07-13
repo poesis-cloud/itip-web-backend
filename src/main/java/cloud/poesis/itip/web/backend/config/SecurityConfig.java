@@ -53,7 +53,7 @@ public class SecurityConfig {
             requests ->
                 requests
                     .requestMatchers(
-                        "/api/auth/**",
+                        "/api/auth/login",
                         "/v3/api-docs/**",
                         "/swagger-ui/**",
                         "/swagger-ui.html",
@@ -63,6 +63,11 @@ public class SecurityConfig {
                     .permitAll()
                     .anyRequest()
                     .authenticated())
+        .exceptionHandling(
+            ex ->
+                ex.authenticationEntryPoint(
+                    new org.springframework.security.web.authentication.HttpStatusEntryPoint(
+                        org.springframework.http.HttpStatus.UNAUTHORIZED)))
         .authenticationProvider(authenticationProvider())
         .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
         .build();

@@ -1,6 +1,5 @@
 package cloud.poesis.itip.web.backend.config;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -57,9 +56,19 @@ class SecurityConfigTest {
 
   @Test
   void nonAuthEndpointsShouldRequireAuthentication() throws Exception {
+    mockMvc.perform(get("/api/test-protected-probe")).andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void meEndpointShouldRequireAuthenticationWhenNoToken() throws Exception {
+    mockMvc.perform(get("/api/auth/me")).andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void meEndpointShouldRejectInvalidBearerToken() throws Exception {
     mockMvc
-        .perform(get("/api/test-protected-probe"))
-        .andExpect(result -> assertThat(result.getResponse().getStatus()).isIn(401, 403));
+        .perform(get("/api/auth/me").header("Authorization", "Bearer not-a-valid-token"))
+        .andExpect(status().isUnauthorized());
   }
 
   @Test

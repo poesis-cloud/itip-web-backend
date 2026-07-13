@@ -1,0 +1,36 @@
+databaseChangeLog:
+# Structural privilege seed (source of truth: db/changelog/data/structural-privileges.csv).
+# The privilege table is code-only: `code` is the natural key (UNIQUE constraint
+# uc_privilegecode_col) and there is NO description column (dropped in 0001).
+# loadUpdateData cannot be used here because the only loadable column (`code`) is the
+# natural key, leaving no non-key columns to update (its generated UPDATE ... SET is empty).
+# Instead we load the CSV into a temp staging table and insert only the missing codes.
+# This is idempotent and re-runnable; runOnChange re-runs the seed when the CSV changes.
+# Deletions are intentionally NOT handled.
+# Runs on Postgres only (H2 test profile has Liquibase disabled).
+- changeSet:
+    id: 0005-1-seed-structural-privileges
+    author: copilot
+    runOnChange: true
+    comment: Seed structural privilege codes (idempotent, code-only; privilege has no description column).
+    changes:
+    - sql:
+        sql: DROP TABLE IF EXISTS tmp_structural_privileges;
+    - createTable:
+        tableName: tmp_structural_privileges
+        columns:
+        - column:
+            name: code
+            type: VARCHAR(255)
+    - loadData:
+        tableName: tmp_structural_privileges
+        file: ../../data/structural-privileges.csv
+        relativeToChangelogFile: true
+        columns:
+        - column:
+            name: code
+            type: STRING
+    - sql:
+        sql: INSERT INTO privilege (code) SELECT code FROM tmp_structural_privileges ON CONFLICT (code) DO NOTHING;
+    - dropTable:
+        tableName: tmp_structural_privileges
