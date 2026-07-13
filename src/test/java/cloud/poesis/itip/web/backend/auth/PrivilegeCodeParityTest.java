@@ -47,6 +47,18 @@ class PrivilegeCodeParityTest {
   private static final String SEED_CSV = "db/changelog/data/structural-privileges.csv";
 
   /**
+   * Captures the string-expression argument passed to {@code @PreAuthorize(...)} /
+   * {@code @PostAuthorize(...)} (optionally via {@code value = ...}). Extraction is intentionally
+   * scoped to annotation payloads to avoid false positives from comments, constants, or unrelated
+   * code.
+   */
+  private static final Pattern SECURITY_ANNOTATION_EXPRESSION =
+      Pattern.compile(
+          "@(?:PreAuthorize|PostAuthorize)\\s*\\(\\s*(?:value\\s*=\\s*)?"
+              + "(\"(?:\\\\.|[^\"\\\\])*\"|'(?:\\\\.|[^'\\\\])*')\\s*\\)",
+          Pattern.DOTALL);
+
+  /**
    * Matches a {@code hasAuthority(...)} or {@code hasAnyAuthority(...)} call and captures its raw
    * argument list (everything up to the closing parenthesis).
    */
@@ -67,6 +79,27 @@ class PrivilegeCodeParityTest {
                 + " (add the missing codes to the CSV seed)",
             SEED_CSV)
         .isSubsetOf(seededCodes);
+  }
+
+  @Test
+  void extractionIgnoresHasAuthorityOutsideSecurityAnnotations() {
+    String source =
+        """
+        package demo;
+
+        class Demo {
+          // hasAuthority('comment:only')
+          static final String S = "hasAuthority('const:only')";
+
+          @PreAuthorize(\"hasAuthority('from:annotation')\")
+          void secured() {}
+        }
+        """;
+
+    Set<String> codes = new LinkedHashSet<>();
+    extractCodesFrom(source, codes);
+
+    assertThat(codes).containsExactly("from:annotation");
   }
 
   private Set<String> loadSeededCodes() throws IOException {
@@ -111,13 +144,24 @@ class PrivilegeCodeParityTest {
   }
 
   private void extractCodesFrom(String source, Set<String> codes) {
-    Matcher calls = AUTHORITY_CALL.matcher(source);
-    while (calls.find()) {
-      Matcher literals = STRING_LITERAL.matcher(calls.group(1));
-      while (literals.find()) {
-        String value = literals.group(1) != null ? literals.group(1) : literals.group(2);
-        codes.add(value.trim());
+    Matcher annotations = SECURITY_ANNOTATION_EXPRESSION.matcher(source);
+    while (annotations.find()) {
+      String expression = unquote(annotations.group(1));
+      Matcher calls = AUTHORITY_CALL.matcher(expression);
+      while (calls.find()) {
+        Matcher literals = STRING_LITERAL.matcher(calls.group(1));
+        while (literals.find()) {
+          String value = literals.group(1) != null ? literals.group(1) : literals.group(2);
+          codes.add(value.trim());
+        }
       }
     }
+  }
+
+  private static String unquote(String quoted) {
+    if (quoted.length() < 2) {
+      return quoted;
+    }
+    return quoted.substring(1, quoted.length() - 1);
   }
 }
