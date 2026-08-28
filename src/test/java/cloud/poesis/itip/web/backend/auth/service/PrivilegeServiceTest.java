@@ -1,0 +1,148 @@
+package cloud.poesis.itip.web.backend.auth.service;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+
+import cloud.poesis.itip.web.backend.auth.entity.Privilege;
+import cloud.poesis.itip.web.backend.auth.entity.PrivilegeAction;
+import cloud.poesis.itip.web.backend.auth.entity.PrivilegeAuditActionType;
+import cloud.poesis.itip.web.backend.auth.entity.PrivilegeEffect;
+import cloud.poesis.itip.web.backend.auth.entity.PrivilegeResourceType;
+import cloud.poesis.itip.web.backend.auth.repository.PrivilegeRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+@ExtendWith(MockitoExtension.class)
+class PrivilegeServiceTest {
+
+  @Mock private PrivilegeRepository privilegeRepository;
+
+  @Mock private PrivilegeChangeAuditService privilegeChangeAuditService;
+
+  private PrivilegeService privilegeService;
+
+  @BeforeEach
+  void setUp() {
+    privilegeService =
+        new PrivilegeService(privilegeRepository, privilegeChangeAuditService, new ObjectMapper());
+  }
+
+  @Test
+  @SuppressWarnings("null")
+  void createShouldPersistExplicitPrivilegeAndAuditItsState() {
+    CreatePrivilegeCommand command = validCommand("target.ownerId != actor.id");
+    when(privilegeRepository.save(any(Privilege.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    Privilege result = privilegeService.create(command, "alice");
+
+    assertThat(result.getCode()).isEqualTo("approve-proposed");
+    assertThat(result.getEffect()).isEqualTo(PrivilegeEffect.ALLOW);
+    assertThat(result.getResourceType()).isEqualTo(PrivilegeResourceType.DEFMAN);
+    assertThat(result.getResourceTypeKey()).isEqualTo("defman:ASCRIPTION");
+    assertThat(result.getAction()).isEqualTo(PrivilegeAction.APPROVE);
+    assertThat(result.getConditionExpression()).isEqualTo("target.ownerId != actor.id");
+    assertThat(result.getCreatedBy()).isEqualTo("alice");
+    assertThat(result.getUpdatedBy()).isEqualTo("alice");
+
+    verify(privilegeChangeAuditService)
+        .recordChange(
+            eq(result),
+            eq(PrivilegeAuditActionType.CREATE),
+            eq("null"),
+            org.mockito.ArgumentMatchers.contains("\"resourceTypeKey\":\"defman:ASCRIPTION\""),
+            eq("alice"));
+  }
+
+  @Test
+  @SuppressWarnings("null")
+  void createShouldNormalizeBlankConditionToNull() {
+    when(privilegeRepository.save(any(Privilege.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    Privilege result = privilegeService.create(validCommand("  "), "alice");
+
+    assertThat(result.getConditionExpression()).isNull();
+  }
+
+  @Test
+  void createShouldRejectMismatchedResourceDomain() {
+    CreatePrivilegeCommand command =
+        new CreatePrivilegeCommand(
+            "approve-proposed",
+            PrivilegeEffect.ALLOW,
+            PrivilegeResourceType.ITIP,
+            "defman:ASCRIPTION",
+            PrivilegeAction.APPROVE,
+            null);
+
+    assertThatThrownBy(() -> privilegeService.create(command, "alice"))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("resourceTypeKey must start with itip:");
+
+    verifyNoInteractions(privilegeRepository, privilegeChangeAuditService);
+  }
+
+  @Test
+  void createShouldRejectResourceKeyWithoutConcreteType() {
+    CreatePrivilegeCommand command =
+        new CreatePrivilegeCommand(
+            "approve-proposed",
+            PrivilegeEffect.ALLOW,
+            PrivilegeResourceType.DEFMAN,
+            "defman:",
+            PrivilegeAction.APPROVE,
+            null);
+
+    assertThatThrownBy(() -> privilegeService.create(command, "alice"))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("include a type");
+
+    verify(privilegeRepository, never()).save(any());
+  }
+
+  @Test
+  void createShouldRejectBlankActor() {
+    assertThatThrownBy(() -> privilegeService.create(validCommand(null), " "))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("actor is required");
+
+    verifyNoInteractions(privilegeRepository, privilegeChangeAuditService);
+  }
+
+  @Test
+  void createShouldRejectIncompleteCommand() {
+    CreatePrivilegeCommand command =
+        new CreatePrivilegeCommand(
+            " ",
+            PrivilegeEffect.ALLOW,
+            PrivilegeResourceType.DEFMAN,
+            "defman:ASCRIPTION",
+            PrivilegeAction.APPROVE,
+            null);
+
+    assertThatThrownBy(() -> privilegeService.create(command, "alice"))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("code is required");
+  }
+
+  private static CreatePrivilegeCommand validCommand(String conditionExpression) {
+    return new CreatePrivilegeCommand(
+        "approve-proposed",
+        PrivilegeEffect.ALLOW,
+        PrivilegeResourceType.DEFMAN,
+        "defman:ASCRIPTION",
+        PrivilegeAction.APPROVE,
+        conditionExpression);
+  }
+}
