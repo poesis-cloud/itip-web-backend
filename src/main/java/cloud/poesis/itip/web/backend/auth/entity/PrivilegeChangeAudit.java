@@ -2,6 +2,8 @@ package cloud.poesis.itip.web.backend.auth.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.ForeignKey;
 import jakarta.persistence.Id;
@@ -19,14 +21,14 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
 @Entity
-@Table(name = "role_privilege_assignment")
+@Table(name = "privilege_change_audit")
 @Getter
 @Setter
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class RolePrivilegeAssignment {
+public class PrivilegeChangeAudit {
 
   @Id
   @EqualsAndHashCode.Include
@@ -35,29 +37,28 @@ public class RolePrivilegeAssignment {
 
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(
-      name = "role_id",
-      nullable = false,
-      foreignKey = @ForeignKey(name = "fk_role_privilege_assignment_role"))
-  private Role role;
-
-  @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(
       name = "privilege_id",
       nullable = false,
-      foreignKey = @ForeignKey(name = "fk_role_privilege_assignment_privilege"))
+      foreignKey = @ForeignKey(name = "fk_privilege_change_audit_privilege"))
   private Privilege privilege;
 
-  @ManyToOne(fetch = FetchType.LAZY, optional = true)
-  @JoinColumn(
-      name = "assigned_by",
-      nullable = true,
-      foreignKey = @ForeignKey(name = "fk_role_privilege_assignment_assigned_by"))
-  private Account assignedBy;
+  @Column(name = "privilege_version", nullable = false)
+  private long privilegeVersion;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "action_type", nullable = false)
+  private PrivilegeAuditActionType actionType;
+
+  @Column(name = "previous_state", nullable = false, columnDefinition = "TEXT")
+  private String previousState;
+
+  @Column(name = "new_state", nullable = false, columnDefinition = "TEXT")
+  private String newState;
+
+  @Column(name = "action_by", nullable = false)
+  private String actionBy;
 
   @CreationTimestamp
-  @Column(name = "assigned_at", nullable = false, updatable = false)
-  private Instant assignedAt;
-
-  @Column(name = "revoked_at", nullable = true)
-  private Instant unassignedAt;
+  @Column(name = "action_at", nullable = false, updatable = false)
+  private Instant actionAt;
 }

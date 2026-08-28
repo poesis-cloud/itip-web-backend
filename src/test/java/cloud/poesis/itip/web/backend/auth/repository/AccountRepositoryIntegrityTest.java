@@ -6,11 +6,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import cloud.poesis.itip.web.backend.auth.entity.Account;
 import cloud.poesis.itip.web.backend.auth.entity.AccountRoleAssignment;
 import cloud.poesis.itip.web.backend.auth.entity.Privilege;
+import cloud.poesis.itip.web.backend.auth.entity.PrivilegeAction;
+import cloud.poesis.itip.web.backend.auth.entity.PrivilegeEffect;
+import cloud.poesis.itip.web.backend.auth.entity.PrivilegeResourceType;
 import cloud.poesis.itip.web.backend.auth.entity.Role;
 import cloud.poesis.itip.web.backend.auth.entity.RolePrivilegeAssignment;
 import cloud.poesis.itip.web.backend.auth.service.AccountService;
 import java.time.Instant;
 import java.util.Objects;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -72,10 +76,18 @@ class AccountRepositoryIntegrityTest {
 
     rolePrivilegeAssignmentRepository.saveAndFlush(
         Objects.requireNonNull(
-            RolePrivilegeAssignment.builder().role(role).privilege(privilege).build()));
+            RolePrivilegeAssignment.builder()
+                .id(UUID.randomUUID())
+                .role(role)
+                .privilege(privilege)
+                .build()));
 
     RolePrivilegeAssignment duplicate =
-        RolePrivilegeAssignment.builder().role(role).privilege(privilege).build();
+        RolePrivilegeAssignment.builder()
+            .id(UUID.randomUUID())
+            .role(role)
+            .privilege(privilege)
+            .build();
 
     assertThatThrownBy(
             () -> rolePrivilegeAssignmentRepository.saveAndFlush(Objects.requireNonNull(duplicate)))
@@ -90,13 +102,14 @@ class AccountRepositoryIntegrityTest {
     accountRoleAssignmentRepository.saveAndFlush(
         Objects.requireNonNull(
             AccountRoleAssignment.builder()
+                .id(UUID.randomUUID())
                 .account(account)
                 .role(role)
                 .expiresAt(Instant.now().minusSeconds(60))
                 .build()));
 
     AccountRoleAssignment regrant =
-        AccountRoleAssignment.builder().account(account).role(role).build();
+        AccountRoleAssignment.builder().id(UUID.randomUUID()).account(account).role(role).build();
 
     accountRoleAssignmentRepository.saveAndFlush(Objects.requireNonNull(regrant));
 
@@ -124,12 +137,17 @@ class AccountRepositoryIntegrityTest {
     Privilege privilege = persistPrivilege("READ_ROLE");
 
     RolePrivilegeAssignment rolePrivilegeAssignment =
-        RolePrivilegeAssignment.builder().role(role).privilege(privilege).build();
+        RolePrivilegeAssignment.builder()
+            .id(UUID.randomUUID())
+            .role(role)
+            .privilege(privilege)
+            .build();
     rolePrivilegeAssignmentRepository.saveAndFlush(Objects.requireNonNull(rolePrivilegeAssignment));
 
     accountRoleAssignmentRepository.saveAndFlush(
         Objects.requireNonNull(
             AccountRoleAssignment.builder()
+                .id(UUID.randomUUID())
                 .account(account)
                 .role(role)
                 .unassignedAt(Instant.now())
@@ -155,6 +173,7 @@ class AccountRepositoryIntegrityTest {
   private Account persistAccount(String email) {
     Account account =
         Account.builder()
+            .id(UUID.randomUUID())
             .email(email)
             .passwordHash("hashed-password")
             .fullName("Test User")
@@ -164,12 +183,22 @@ class AccountRepositoryIntegrityTest {
   }
 
   private Role persistRole(String name) {
-    Role role = Role.builder().name(name).build();
+    Role role = Role.builder().id(UUID.randomUUID()).name(name).build();
     return entityManager.persistFlushFind(role);
   }
 
   private Privilege persistPrivilege(String code) {
-    Privilege privilege = Privilege.builder().code(code).build();
+    Privilege privilege =
+        Privilege.builder()
+            .id(UUID.randomUUID())
+            .code(code)
+            .effect(PrivilegeEffect.ALLOW)
+            .resourceType(PrivilegeResourceType.ITIP)
+            .resourceTypeKey("itip:PRIVILEGE")
+            .action(PrivilegeAction.READ)
+            .createdBy("test")
+            .updatedBy("test")
+            .build();
     return entityManager.persistFlushFind(privilege);
   }
 }

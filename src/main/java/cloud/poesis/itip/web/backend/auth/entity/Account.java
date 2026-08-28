@@ -5,7 +5,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
-import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.HashSet;
@@ -60,11 +59,4 @@ public class Account {
   @Default
   @OneToMany(mappedBy = "account", fetch = FetchType.LAZY)
   private Set<AccountRoleAssignment> accountRoleAssignments = new HashSet<>();
-
-  @PrePersist
-  void assignUuidV7IfMissing() {
-    if (id == null) {
-      id = UuidV7Generator.generate();
-    }
-  }
 }
