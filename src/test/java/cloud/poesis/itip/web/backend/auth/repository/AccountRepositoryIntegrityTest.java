@@ -8,7 +8,7 @@ import cloud.poesis.itip.web.backend.auth.entity.AccountRoleAssignment;
 import cloud.poesis.itip.web.backend.auth.entity.Privilege;
 import cloud.poesis.itip.web.backend.auth.entity.PrivilegeAction;
 import cloud.poesis.itip.web.backend.auth.entity.PrivilegeEffect;
-import cloud.poesis.itip.web.backend.auth.entity.PrivilegeResourceType;
+import cloud.poesis.itip.web.backend.auth.entity.PrivilegeResourceOrigin;
 import cloud.poesis.itip.web.backend.auth.entity.Role;
 import cloud.poesis.itip.web.backend.auth.entity.RolePrivilegeAssignment;
 import cloud.poesis.itip.web.backend.auth.service.AccountService;
@@ -72,7 +72,7 @@ class AccountRepositoryIntegrityTest {
   @Test
   void duplicateRolePrivilegeAssignmentShouldFail() {
     Role role = persistRole("ADMIN");
-    Privilege privilege = persistPrivilege("READ_USER");
+    Privilege privilege = persistPrivilege();
 
     rolePrivilegeAssignmentRepository.saveAndFlush(
         Objects.requireNonNull(
@@ -134,7 +134,7 @@ class AccountRepositoryIntegrityTest {
   void accountShouldBeReturnedWithoutActiveAssignmentsAndServiceAuthoritiesShouldBeEmpty() {
     Account account = persistAccount("no-active@itip.local");
     Role role = persistRole("OPS");
-    Privilege privilege = persistPrivilege("READ_ROLE");
+    Privilege privilege = persistPrivilege();
 
     RolePrivilegeAssignment rolePrivilegeAssignment =
         RolePrivilegeAssignment.builder()
@@ -187,14 +187,13 @@ class AccountRepositoryIntegrityTest {
     return entityManager.persistFlushFind(role);
   }
 
-  private Privilege persistPrivilege(String code) {
+  private Privilege persistPrivilege() {
     Privilege privilege =
         Privilege.builder()
             .id(UUID.randomUUID())
-            .code(code)
             .effect(PrivilegeEffect.ALLOW)
-            .resourceType(PrivilegeResourceType.ITIP)
-            .resourceTypeKey("itip:PRIVILEGE")
+            .resourceOrigin(PrivilegeResourceOrigin.ITIP)
+            .resource("PRIVILEGE")
             .action(PrivilegeAction.READ)
             .createdBy("test")
             .updatedBy("test")

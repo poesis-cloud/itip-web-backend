@@ -8,6 +8,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Version;
 import java.time.Instant;
 import java.util.HashSet;
@@ -25,7 +26,12 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
-@Table(name = "privilege")
+@Table(
+    name = "privilege",
+    uniqueConstraints =
+        @UniqueConstraint(
+            name = "uq_privilege_identity",
+            columnNames = {"resource_origin", "resource", "action", "effect"}))
 @Getter
 @Setter
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
@@ -39,25 +45,23 @@ public class Privilege {
   @Column(name = "id", nullable = false, updatable = false)
   private UUID id;
 
-  @Column(name = "code", nullable = false, unique = true)
-  private String code;
-
   @Enumerated(EnumType.STRING)
   @Column(name = "effect", nullable = false)
   private PrivilegeEffect effect;
 
   @Enumerated(EnumType.STRING)
-  @Column(name = "resource_type", nullable = false)
-  private PrivilegeResourceType resourceType;
+  @Column(name = "resource_origin", nullable = false)
+  private PrivilegeResourceOrigin resourceOrigin;
 
-  @Column(name = "resource_type_key", nullable = false)
-  private String resourceTypeKey;
+  // Bare resource name, without any origin prefix.
+  @Column(name = "resource", nullable = false)
+  private String resource;
 
   @Enumerated(EnumType.STRING)
   @Column(name = "action", nullable = false)
   private PrivilegeAction action;
 
-  @Column(name = "condition_expression")
+  @Column(name = "condition_expression", columnDefinition = "TEXT")
   private String conditionExpression;
 
   @Version

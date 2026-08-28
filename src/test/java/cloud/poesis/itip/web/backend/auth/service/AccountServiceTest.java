@@ -7,6 +7,9 @@ import static org.mockito.Mockito.when;
 import cloud.poesis.itip.web.backend.auth.entity.Account;
 import cloud.poesis.itip.web.backend.auth.entity.AccountRoleAssignment;
 import cloud.poesis.itip.web.backend.auth.entity.Privilege;
+import cloud.poesis.itip.web.backend.auth.entity.PrivilegeAction;
+import cloud.poesis.itip.web.backend.auth.entity.PrivilegeEffect;
+import cloud.poesis.itip.web.backend.auth.entity.PrivilegeResourceOrigin;
 import cloud.poesis.itip.web.backend.auth.entity.Role;
 import cloud.poesis.itip.web.backend.auth.entity.RolePrivilegeAssignment;
 import cloud.poesis.itip.web.backend.auth.repository.AccountRepository;
@@ -30,12 +33,22 @@ class AccountServiceTest {
 
   @Test
   void loadUserByUsernameShouldReturnUserDetailsWithOnlyActiveAuthorities() {
-    Privilege activePrivilege = Privilege.builder().id(UUID.randomUUID()).code("READ_USER").build();
+    Privilege activePrivilege = allowPrivilege("ACCOUNT", PrivilegeAction.READ);
     RolePrivilegeAssignment activeRolePrivilegeAssignment =
         RolePrivilegeAssignment.builder().id(UUID.randomUUID()).privilege(activePrivilege).build();
 
-    Privilege revokedPrivilege =
-        Privilege.builder().id(UUID.randomUUID()).code("DELETE_USER").build();
+    Privilege denyPrivilege =
+        Privilege.builder()
+            .id(UUID.randomUUID())
+            .effect(PrivilegeEffect.DENY)
+            .resourceOrigin(PrivilegeResourceOrigin.ITIP)
+            .resource("ACCOUNT")
+            .action(PrivilegeAction.DISABLE_ACCOUNT)
+            .build();
+    RolePrivilegeAssignment denyRolePrivilegeAssignment =
+        RolePrivilegeAssignment.builder().id(UUID.randomUUID()).privilege(denyPrivilege).build();
+
+    Privilege revokedPrivilege = allowPrivilege("PRIVILEGE", PrivilegeAction.CREATE);
     RolePrivilegeAssignment revokedRolePrivilegeAssignment =
         RolePrivilegeAssignment.builder()
             .id(UUID.randomUUID())
@@ -48,7 +61,10 @@ class AccountServiceTest {
             .id(UUID.randomUUID())
             .name("ADMIN")
             .rolePrivilegeAssignments(
-                Set.of(activeRolePrivilegeAssignment, revokedRolePrivilegeAssignment))
+                Set.of(
+                    activeRolePrivilegeAssignment,
+                    denyRolePrivilegeAssignment,
+                    revokedRolePrivilegeAssignment))
             .build();
 
     AccountRoleAssignment activeRoleAssignment =
@@ -80,7 +96,7 @@ class AccountServiceTest {
     assertThat(userDetails.isEnabled()).isTrue();
     assertThat(userDetails.getAuthorities())
         .extracting("authority")
-        .containsExactlyInAnyOrder("READ_USER");
+        .containsExactlyInAnyOrder("ITIP:ACCOUNT:READ");
   }
 
   @Test
@@ -135,9 +151,9 @@ class AccountServiceTest {
   }
 
   @Test
-  void loadUserByUsernameShouldIgnoreInvalidAuthoritiesAndKeepOnlyValidPrivilegeCodes() {
-    Privilege validPrivilege = Privilege.builder().id(UUID.randomUUID()).code("READ_USER").build();
-    Privilege nullCodePrivilege = Privilege.builder().id(UUID.randomUUID()).code(null).build();
+  void loadUserByUsernameShouldIgnoreIncompletePrivilegesAndKeepValidAuthorities() {
+    Privilege validPrivilege = allowPrivilege("ACCOUNT", PrivilegeAction.READ);
+    Privilege incompletePrivilege = allowPrivilege(null, PrivilegeAction.READ);
 
     Role roleWithNullPrivilegeAssignments =
         Role.builder()
@@ -158,7 +174,7 @@ class AccountServiceTest {
                         .build()))
             .build();
 
-    Role roleWithNullPrivilegeCode =
+    Role roleWithIncompletePrivilege =
         Role.builder()
             .id(UUID.randomUUID())
             .name("NULL_PRIVILEGE_CODE")
@@ -166,7 +182,7 @@ class AccountServiceTest {
                 Set.of(
                     RolePrivilegeAssignment.builder()
                         .id(UUID.randomUUID())
-                        .privilege(nullCodePrivilege)
+                        .privilege(incompletePrivilege)
                         .build()))
             .build();
 
@@ -201,7 +217,7 @@ class AccountServiceTest {
                         .build(),
                     AccountRoleAssignment.builder()
                         .id(UUID.randomUUID())
-                        .role(roleWithNullPrivilegeCode)
+                        .role(roleWithIncompletePrivilege)
                         .build(),
                     AccountRoleAssignment.builder()
                         .id(UUID.randomUUID())
@@ -216,12 +232,12 @@ class AccountServiceTest {
 
     assertThat(userDetails.getAuthorities())
         .extracting("authority")
-        .containsExactlyInAnyOrder("READ_USER");
+        .containsExactlyInAnyOrder("ITIP:ACCOUNT:READ");
   }
 
   @Test
   void loadUserByUsernameShouldIgnoreRevokedRoleAssignments() {
-    Privilege privilege = Privilege.builder().id(UUID.randomUUID()).code("READ_USER").build();
+    Privilege privilege = allowPrivilege("ACCOUNT", PrivilegeAction.READ);
     Role role =
         Role.builder()
             .id(UUID.randomUUID())
@@ -259,7 +275,7 @@ class AccountServiceTest {
 
   @Test
   void loadUserByUsernameShouldIgnoreExpiredRoleAssignmentsEvenWhenNotRevoked() {
-    Privilege privilege = Privilege.builder().id(UUID.randomUUID()).code("READ_USER").build();
+    Privilege privilege = allowPrivilege("ACCOUNT", PrivilegeAction.READ);
     Role role =
         Role.builder()
             .id(UUID.randomUUID())
@@ -297,7 +313,7 @@ class AccountServiceTest {
 
   @Test
   void loadUserByUsernameShouldAcceptFutureExpiringRoleAssignments() {
-    Privilege privilege = Privilege.builder().id(UUID.randomUUID()).code("READ_USER").build();
+    Privilege privilege = allowPrivilege("ACCOUNT", PrivilegeAction.READ);
     Role role =
         Role.builder()
             .id(UUID.randomUUID())
@@ -332,6 +348,16 @@ class AccountServiceTest {
 
     assertThat(userDetails.getAuthorities())
         .extracting("authority")
-        .containsExactlyInAnyOrder("READ_USER");
+        .containsExactlyInAnyOrder("ITIP:ACCOUNT:READ");
+  }
+
+  private static Privilege allowPrivilege(String resource, PrivilegeAction action) {
+    return Privilege.builder()
+        .id(UUID.randomUUID())
+        .effect(PrivilegeEffect.ALLOW)
+        .resourceOrigin(PrivilegeResourceOrigin.ITIP)
+        .resource(resource)
+        .action(action)
+        .build();
   }
 }

@@ -18,6 +18,9 @@ spring:
   liquibase:
     enabled: true
     change-log: classpath:db/changelog/db.changelog-master.yaml
+    # Seed changesets are tagged "dev"; any other context leaves them out.
+    # Not named LIQUIBASE_* because Liquibase reserves that prefix.
+    contexts: ${ITIP_LIQUIBASE_CONTEXTS:prod}
 
 itip:
   security:

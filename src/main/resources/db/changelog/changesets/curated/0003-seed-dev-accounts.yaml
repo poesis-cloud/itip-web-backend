@@ -1,0 +1,89 @@
+# Dev-only seed. Runs solely when the "dev" Liquibase context is active.
+# Ids are intentionally omitted so PostgreSQL assigns UUIDv7 via uuid_v7().
+databaseChangeLog:
+- changeSet:
+    id: 0003-1-seed-dev-accounts
+    author: copilot
+    context: dev
+    changes:
+    - sql:
+        splitStatements: false
+        sql: |
+          INSERT INTO account (email, password_hash, full_name, enabled, created_at, updated_at)
+          VALUES
+            ('admin@itip.local',    '$2y$10$6fTX6qIj92/jcUL3x3gTku7UEQTojglTjYP5.PHrzINx0A28Lq6Yq', 'ITIP Admin',    true, now(), now()),
+            ('reviewer@itip.local', '$2y$10$cPPWfgsLvqM6tpsZWqIZ0.TgFGwaJt/aLfxJNTjBMdIIG5ZsAfvtC', 'ITIP Reviewer', true, now(), now())
+          ON CONFLICT (email) DO NOTHING;
+
+          INSERT INTO role (name, created_at, updated_at)
+          VALUES
+            ('ITIP_ADMIN',    now(), now()),
+            ('ITIP_REVIEWER', now(), now())
+          ON CONFLICT (name) DO NOTHING;
+
+- changeSet:
+    id: 0003-2-seed-dev-privileges
+    author: copilot
+    context: dev
+    changes:
+    - sql:
+        splitStatements: false
+        sql: |
+          INSERT INTO privilege (
+            effect, resource_origin, resource, action, condition_expression,
+            version, created_by, updated_by, created_at, updated_at
+          )
+          VALUES
+            ('ALLOW', 'ITIP',   'PRIVILEGE',  'READ',            NULL, 0, 'seed', 'seed', now(), now()),
+            ('ALLOW', 'ITIP',   'PRIVILEGE',  'CREATE',          NULL, 0, 'seed', 'seed', now(), now()),
+            ('ALLOW', 'ITIP',   'ACCOUNT',    'DISABLE_ACCOUNT', NULL, 0, 'seed', 'seed', now(), now()),
+            ('ALLOW', 'DEFMAN', 'ASCRIPTION', 'READ',            NULL, 0, 'seed', 'seed', now(), now()),
+            ('ALLOW', 'DEFMAN', 'ASCRIPTION', 'APPROVE',
+             'target.authorship.identity != actor.id', 0, 'seed', 'seed', now(), now()),
+            ('DENY',  'DEFMAN', 'ASCRIPTION', 'APPROVE',
+             'target.authorship.identity == actor.id', 0, 'seed', 'seed', now(), now())
+          ON CONFLICT (resource_origin, resource, action, effect) DO NOTHING;
+
+- changeSet:
+    id: 0003-3-seed-dev-assignments
+    author: copilot
+    context: dev
+    changes:
+    - sql:
+        splitStatements: false
+        sql: |
+          INSERT INTO role_privilege_assignment (role_id, privilege_id, assigned_at)
+          SELECT r.id, p.id, now()
+          FROM role r
+          JOIN privilege p
+            ON (p.resource_origin, p.resource, p.action, p.effect) IN (
+                 ('ITIP', 'PRIVILEGE', 'READ',            'ALLOW'),
+                 ('ITIP', 'PRIVILEGE', 'CREATE',          'ALLOW'),
+                 ('ITIP', 'ACCOUNT',   'DISABLE_ACCOUNT', 'ALLOW')
+               )
+          WHERE r.name = 'ITIP_ADMIN'
+          ON CONFLICT DO NOTHING;
+
+          INSERT INTO role_privilege_assignment (role_id, privilege_id, assigned_at)
+          SELECT r.id, p.id, now()
+          FROM role r
+          JOIN privilege p
+            ON (p.resource_origin, p.resource, p.action, p.effect) IN (
+                 ('DEFMAN', 'ASCRIPTION', 'READ',    'ALLOW'),
+                 ('DEFMAN', 'ASCRIPTION', 'APPROVE', 'ALLOW'),
+                 ('DEFMAN', 'ASCRIPTION', 'APPROVE', 'DENY')
+               )
+          WHERE r.name = 'ITIP_REVIEWER'
+          ON CONFLICT DO NOTHING;
+
+          INSERT INTO account_role_assignment (account_id, role_id, assigned_at)
+          SELECT a.id, r.id, now()
+          FROM account a
+          JOIN role r ON r.name = 'ITIP_ADMIN'
+          WHERE a.email = 'admin@itip.local';
+
+          INSERT INTO account_role_assignment (account_id, role_id, assigned_at)
+          SELECT a.id, r.id, now()
+          FROM account a
+          JOIN role r ON r.name = 'ITIP_REVIEWER'
+          WHERE a.email = 'reviewer@itip.local';

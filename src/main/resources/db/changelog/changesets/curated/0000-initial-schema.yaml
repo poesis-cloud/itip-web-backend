@@ -1,7 +1,7 @@
 databaseChangeLog:
 - changeSet:
-    id: 1782856511083-1
-    author: root (generated)
+    id: 1787909228270-1
+    author: hamza (generated)
     changes:
     - createTable:
         columns:
@@ -42,8 +42,8 @@ databaseChangeLog:
             type: TIMESTAMP(6) WITH TIME ZONE
         tableName: account
 - changeSet:
-    id: 1782856511083-2
-    author: root (generated)
+    id: 1787909228270-2
+    author: hamza (generated)
     changes:
     - createTable:
         columns:
@@ -80,8 +80,8 @@ databaseChangeLog:
             type: UUID
         tableName: account_role_assignment
 - changeSet:
-    id: 1782856511083-3
-    author: root (generated)
+    id: 1787909228270-3
+    author: hamza (generated)
     changes:
     - createTable:
         columns:
@@ -95,15 +95,104 @@ databaseChangeLog:
         - column:
             constraints:
               nullable: false
-            name: code
+            name: action
             type: VARCHAR(255)
         - column:
-            name: description
+            name: condition_expression
+            type: TEXT
+        - column:
+            constraints:
+              nullable: false
+            name: created_at
+            type: TIMESTAMP(6) WITH TIME ZONE
+        - column:
+            constraints:
+              nullable: false
+            name: created_by
             type: VARCHAR(255)
+        - column:
+            constraints:
+              nullable: false
+            name: effect
+            type: VARCHAR(255)
+        - column:
+            constraints:
+              nullable: false
+            name: resource
+            type: VARCHAR(255)
+        - column:
+            constraints:
+              nullable: false
+            name: resource_origin
+            type: VARCHAR(255)
+        - column:
+            constraints:
+              nullable: false
+            name: updated_at
+            type: TIMESTAMP(6) WITH TIME ZONE
+        - column:
+            constraints:
+              nullable: false
+            name: updated_by
+            type: VARCHAR(255)
+        - column:
+            constraints:
+              nullable: false
+            name: version
+            type: BIGINT
         tableName: privilege
 - changeSet:
-    id: 1782856511083-4
-    author: root (generated)
+    id: 1787909228270-4
+    author: hamza (generated)
+    changes:
+    - createTable:
+        columns:
+        - column:
+            constraints:
+              nullable: false
+              primaryKey: true
+              primaryKeyName: privilege_change_auditPK
+            name: id
+            type: UUID
+        - column:
+            constraints:
+              nullable: false
+            name: action_at
+            type: TIMESTAMP(6) WITH TIME ZONE
+        - column:
+            constraints:
+              nullable: false
+            name: action_by
+            type: VARCHAR(255)
+        - column:
+            constraints:
+              nullable: false
+            name: action_type
+            type: VARCHAR(255)
+        - column:
+            constraints:
+              nullable: false
+            name: new_state
+            type: TEXT
+        - column:
+            constraints:
+              nullable: false
+            name: previous_state
+            type: TEXT
+        - column:
+            constraints:
+              nullable: false
+            name: privilege_version
+            type: BIGINT
+        - column:
+            constraints:
+              nullable: false
+            name: privilege_id
+            type: UUID
+        tableName: privilege_change_audit
+- changeSet:
+    id: 1787909228270-5
+    author: hamza (generated)
     changes:
     - createTable:
         columns:
@@ -120,9 +209,6 @@ databaseChangeLog:
             name: created_at
             type: TIMESTAMP(6) WITH TIME ZONE
         - column:
-            name: description
-            type: VARCHAR(255)
-        - column:
             constraints:
               nullable: false
             name: name
@@ -134,8 +220,8 @@ databaseChangeLog:
             type: TIMESTAMP(6) WITH TIME ZONE
         tableName: role
 - changeSet:
-    id: 1782856511083-5
-    author: root (generated)
+    id: 1787909228270-6
+    author: hamza (generated)
     changes:
     - createTable:
         columns:
@@ -169,26 +255,117 @@ databaseChangeLog:
             type: UUID
         tableName: role_privilege_assignment
 - changeSet:
-    id: 1782856511083-6
-    author: root (generated)
+    id: 1787909228270-7
+    author: hamza (generated)
     changes:
     - addUniqueConstraint:
         columnNames: email
         constraintName: UC_ACCOUNTEMAIL_COL
         tableName: account
 - changeSet:
-    id: 1782856511083-7
-    author: root (generated)
-    changes:
-    - addUniqueConstraint:
-        columnNames: code
-        constraintName: UC_PRIVILEGECODE_COL
-        tableName: privilege
-- changeSet:
-    id: 1782856511083-8
-    author: root (generated)
+    id: 1787909228270-8
+    author: hamza (generated)
     changes:
     - addUniqueConstraint:
         columnNames: name
         constraintName: UC_ROLENAME_COL
         tableName: role
+- changeSet:
+    id: 1787909228270-9
+    author: hamza (generated)
+    changes:
+    - addUniqueConstraint:
+        columnNames: resource_origin, resource, action, effect
+        constraintName: uq_privilege_identity
+        tableName: privilege
+- changeSet:
+    id: 1787909228270-10
+    author: hamza (generated)
+    changes:
+    - addForeignKeyConstraint:
+        baseColumnNames: account_id
+        baseTableName: account_role_assignment
+        constraintName: fk_account_role_assignment_account
+        deferrable: false
+        initiallyDeferred: false
+        referencedColumnNames: id
+        referencedTableName: account
+        validate: true
+- changeSet:
+    id: 1787909228270-11
+    author: hamza (generated)
+    changes:
+    - addForeignKeyConstraint:
+        baseColumnNames: assigned_by
+        baseTableName: account_role_assignment
+        constraintName: fk_account_role_assignment_assigned_by
+        deferrable: false
+        initiallyDeferred: false
+        referencedColumnNames: id
+        referencedTableName: account
+        validate: true
+- changeSet:
+    id: 1787909228270-12
+    author: hamza (generated)
+    changes:
+    - addForeignKeyConstraint:
+        baseColumnNames: role_id
+        baseTableName: account_role_assignment
+        constraintName: fk_account_role_assignment_role
+        deferrable: false
+        initiallyDeferred: false
+        referencedColumnNames: id
+        referencedTableName: role
+        validate: true
+- changeSet:
+    id: 1787909228270-13
+    author: hamza (generated)
+    changes:
+    - addForeignKeyConstraint:
+        baseColumnNames: privilege_id
+        baseTableName: privilege_change_audit
+        constraintName: fk_privilege_change_audit_privilege
+        deferrable: false
+        initiallyDeferred: false
+        referencedColumnNames: id
+        referencedTableName: privilege
+        validate: true
+- changeSet:
+    id: 1787909228270-14
+    author: hamza (generated)
+    changes:
+    - addForeignKeyConstraint:
+        baseColumnNames: assigned_by
+        baseTableName: role_privilege_assignment
+        constraintName: fk_role_privilege_assignment_assigned_by
+        deferrable: false
+        initiallyDeferred: false
+        referencedColumnNames: id
+        referencedTableName: account
+        validate: true
+- changeSet:
+    id: 1787909228270-15
+    author: hamza (generated)
+    changes:
+    - addForeignKeyConstraint:
+        baseColumnNames: privilege_id
+        baseTableName: role_privilege_assignment
+        constraintName: fk_role_privilege_assignment_privilege
+        deferrable: false
+        initiallyDeferred: false
+        referencedColumnNames: id
+        referencedTableName: privilege
+        validate: true
+- changeSet:
+    id: 1787909228270-16
+    author: hamza (generated)
+    changes:
+    - addForeignKeyConstraint:
+        baseColumnNames: role_id
+        baseTableName: role_privilege_assignment
+        constraintName: fk_role_privilege_assignment_role
+        deferrable: false
+        initiallyDeferred: false
+        referencedColumnNames: id
+        referencedTableName: role
+        validate: true

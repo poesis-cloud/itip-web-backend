@@ -2,6 +2,8 @@ package cloud.poesis.itip.web.backend.auth.service;
 
 import cloud.poesis.itip.web.backend.auth.entity.Account;
 import cloud.poesis.itip.web.backend.auth.entity.AccountRoleAssignment;
+import cloud.poesis.itip.web.backend.auth.entity.Privilege;
+import cloud.poesis.itip.web.backend.auth.entity.PrivilegeEffect;
 import cloud.poesis.itip.web.backend.auth.repository.AccountRepository;
 import java.time.Instant;
 import java.util.HashSet;
@@ -45,7 +47,8 @@ public class AccountService implements UserDetailsService {
             .filter(rolePrivilegeAssignment -> rolePrivilegeAssignment.getUnassignedAt() == null)
             .map(rolePrivilegeAssignment -> rolePrivilegeAssignment.getPrivilege())
             .filter(Objects::nonNull)
-            .map(privilege -> privilege.getCode())
+            .filter(privilege -> privilege.getEffect() == PrivilegeEffect.ALLOW)
+            .map(AccountService::authorityOf)
             .filter(Objects::nonNull)
             .map(SimpleGrantedAuthority::new)
             .collect(Collectors.toSet());
@@ -65,5 +68,19 @@ public class AccountService implements UserDetailsService {
 
   private static <T> Set<T> snapshot(Set<T> source) {
     return source == null ? Set.of() : new HashSet<>(source);
+  }
+
+  // DENY privileges are excluded here; deny-overrides is resolved by the authorization guard.
+  private static String authorityOf(Privilege privilege) {
+    if (privilege.getResourceOrigin() == null
+        || privilege.getResource() == null
+        || privilege.getAction() == null) {
+      return null;
+    }
+    return privilege.getResourceOrigin()
+        + ":"
+        + privilege.getResource()
+        + ":"
+        + privilege.getAction();
   }
 }

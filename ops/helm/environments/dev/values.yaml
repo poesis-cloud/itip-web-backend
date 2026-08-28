@@ -28,9 +28,10 @@ ingress:
   tls: []
 
 env:
-  DB_URL: jdbc:postgresql://definitiondatabase:5432/itip_web_backend
+  DB_URL: jdbc:postgresql://itipdatabase:5432/itip_web_backend
   DB_USER: itip_local
   SPRING_PROFILES_ACTIVE: local
+  ITIP_LIQUIBASE_CONTEXTS: dev
   ITIP_SECURITY_PERMIT_ALL: "true"
   ITIP_SECURITY_JWT_EXPIRATION_MS: "3600000"
 

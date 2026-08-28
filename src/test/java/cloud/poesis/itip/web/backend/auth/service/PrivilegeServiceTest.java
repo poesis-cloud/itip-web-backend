@@ -13,7 +13,7 @@ import cloud.poesis.itip.web.backend.auth.entity.Privilege;
 import cloud.poesis.itip.web.backend.auth.entity.PrivilegeAction;
 import cloud.poesis.itip.web.backend.auth.entity.PrivilegeAuditActionType;
 import cloud.poesis.itip.web.backend.auth.entity.PrivilegeEffect;
-import cloud.poesis.itip.web.backend.auth.entity.PrivilegeResourceType;
+import cloud.poesis.itip.web.backend.auth.entity.PrivilegeResourceOrigin;
 import cloud.poesis.itip.web.backend.auth.repository.PrivilegeRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,10 +46,9 @@ class PrivilegeServiceTest {
 
     Privilege result = privilegeService.create(command, "alice");
 
-    assertThat(result.getCode()).isEqualTo("approve-proposed");
     assertThat(result.getEffect()).isEqualTo(PrivilegeEffect.ALLOW);
-    assertThat(result.getResourceType()).isEqualTo(PrivilegeResourceType.DEFMAN);
-    assertThat(result.getResourceTypeKey()).isEqualTo("defman:ASCRIPTION");
+    assertThat(result.getResourceOrigin()).isEqualTo(PrivilegeResourceOrigin.DEFMAN);
+    assertThat(result.getResource()).isEqualTo("ASCRIPTION");
     assertThat(result.getAction()).isEqualTo(PrivilegeAction.APPROVE);
     assertThat(result.getConditionExpression()).isEqualTo("target.ownerId != actor.id");
     assertThat(result.getCreatedBy()).isEqualTo("alice");
@@ -60,7 +59,7 @@ class PrivilegeServiceTest {
             eq(result),
             eq(PrivilegeAuditActionType.CREATE),
             eq("null"),
-            org.mockito.ArgumentMatchers.contains("\"resourceTypeKey\":\"defman:ASCRIPTION\""),
+            org.mockito.ArgumentMatchers.contains("\"resource\":\"ASCRIPTION\""),
             eq("alice"));
   }
 
@@ -76,37 +75,35 @@ class PrivilegeServiceTest {
   }
 
   @Test
-  void createShouldRejectMismatchedResourceDomain() {
+  void createShouldRejectResourceCarryingOriginPrefix() {
     CreatePrivilegeCommand command =
         new CreatePrivilegeCommand(
-            "approve-proposed",
             PrivilegeEffect.ALLOW,
-            PrivilegeResourceType.ITIP,
+            PrivilegeResourceOrigin.DEFMAN,
             "defman:ASCRIPTION",
             PrivilegeAction.APPROVE,
             null);
 
     assertThatThrownBy(() -> privilegeService.create(command, "alice"))
         .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("resourceTypeKey must start with itip:");
+        .hasMessageContaining("must not carry an origin prefix");
 
     verifyNoInteractions(privilegeRepository, privilegeChangeAuditService);
   }
 
   @Test
-  void createShouldRejectResourceKeyWithoutConcreteType() {
+  void createShouldRejectBlankResource() {
     CreatePrivilegeCommand command =
         new CreatePrivilegeCommand(
-            "approve-proposed",
             PrivilegeEffect.ALLOW,
-            PrivilegeResourceType.DEFMAN,
-            "defman:",
+            PrivilegeResourceOrigin.DEFMAN,
+            "  ",
             PrivilegeAction.APPROVE,
             null);
 
     assertThatThrownBy(() -> privilegeService.create(command, "alice"))
         .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("include a type");
+        .hasMessage("resource is required");
 
     verify(privilegeRepository, never()).save(any());
   }
@@ -121,27 +118,21 @@ class PrivilegeServiceTest {
   }
 
   @Test
-  void createShouldRejectIncompleteCommand() {
+  void createShouldRejectMissingEffect() {
     CreatePrivilegeCommand command =
         new CreatePrivilegeCommand(
-            " ",
-            PrivilegeEffect.ALLOW,
-            PrivilegeResourceType.DEFMAN,
-            "defman:ASCRIPTION",
-            PrivilegeAction.APPROVE,
-            null);
+            null, PrivilegeResourceOrigin.DEFMAN, "ASCRIPTION", PrivilegeAction.APPROVE, null);
 
     assertThatThrownBy(() -> privilegeService.create(command, "alice"))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessage("code is required");
+        .isInstanceOf(NullPointerException.class)
+        .hasMessage("effect is required");
   }
 
   private static CreatePrivilegeCommand validCommand(String conditionExpression) {
     return new CreatePrivilegeCommand(
-        "approve-proposed",
         PrivilegeEffect.ALLOW,
-        PrivilegeResourceType.DEFMAN,
-        "defman:ASCRIPTION",
+        PrivilegeResourceOrigin.DEFMAN,
+        "ASCRIPTION",
         PrivilegeAction.APPROVE,
         conditionExpression);
   }

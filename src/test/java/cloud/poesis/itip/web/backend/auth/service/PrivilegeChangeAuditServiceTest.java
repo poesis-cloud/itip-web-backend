@@ -29,7 +29,7 @@ class PrivilegeChangeAuditServiceTest {
 
   @BeforeEach
   void setUp() {
-    privilege = Privilege.builder().code("approve-proposed").version(3L).build();
+    privilege = Privilege.builder().version(3L).build();
   }
 
   @Test

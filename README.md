@@ -12,50 +12,44 @@ Spring Boot backend service for the ITIP Web Frontend (BFF layer). Exposes REST 
 
 ## Stack
 
-- Java 25 / Spring Boot 3.x
+- Java 25 / Spring Boot 3.5
 - Spring Web, Spring Security (custom JWT filter), Spring Actuator
+- PostgreSQL 16, schema owned by Liquibase
 - Kubernetes / Helm deployment
-
-## Local Docker run
-
-Use the repository `Dockerfile` to build and run the API container:
-
-```bash
-docker build -t itip-web-backend:local .
-docker run --rm -p 8080:8080 \
-	-e DB_URL=jdbc:postgresql://<host>:5432/itip_web_backend \
-	-e DB_USER=<user> \
-	-e DB_PASSWORD=<password> \
-	-e ITIP_SECURITY_JWT_SECRET=<at-least-32-bytes-secret> \
-	itip-web-backend:local
-```
-
-## Liquibase workflow
-
-Database migrations are managed with Liquibase and a Hibernate-backed diff configuration.
-
-```bash
-mvn liquibase:diff
-mvn liquibase:update
-```
-
-The diff configuration is defined in repository-root `liquibase.properties`. Generated diffs are written under `target/generated-liquibase/`; promote reviewed changes into `src/main/resources/db/changelog/changesets/curated/` before runtime use.
 
 ## Local development
 
-```bash
-# Check prerequisites (kubectl, helm, active context)
-make dev-check
+The backend needs its database first. `itip-web-database` is a sibling component
+under `itip/`, deployed separately and reachable in-cluster as `itipdatabase`.
 
-# Deploy the chart to the local cluster
+```bash
+# 1. Database — from itip/itip-web-database
 make dev-up
 
-# Run the API locally (reads from .env.dev)
+# 2. Backend — from itip/itip-web-backend
+make dev-check
+make dev-up
+
+# Run the API locally instead of in-cluster — from itip/itip-web-backend
 make run-api
 
-# Stop and uninstall the chart
-make dev-down
+# 3. Teardown, in reverse order
+make dev-down   # from itip/itip-web-backend
+make dev-down   # from itip/itip-web-database
 ```
+
+The database port-forward listens on `localhost:5433`, because `5432` is usually
+taken by the SIE database.
+
+### Dev accounts
+
+The dev environment starts with two seeded accounts holding different
+privileges. They exist in dev only.
+
+| Account | Password |
+| --- | --- |
+| `admin@itip.local` | `AdminPass123!` |
+| `reviewer@itip.local` | `ReviewPass123!` |
 
 ## Ops
 

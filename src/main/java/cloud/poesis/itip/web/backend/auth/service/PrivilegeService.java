@@ -4,11 +4,10 @@ import cloud.poesis.itip.web.backend.auth.entity.Privilege;
 import cloud.poesis.itip.web.backend.auth.entity.PrivilegeAction;
 import cloud.poesis.itip.web.backend.auth.entity.PrivilegeAuditActionType;
 import cloud.poesis.itip.web.backend.auth.entity.PrivilegeEffect;
-import cloud.poesis.itip.web.backend.auth.entity.PrivilegeResourceType;
+import cloud.poesis.itip.web.backend.auth.entity.PrivilegeResourceOrigin;
 import cloud.poesis.itip.web.backend.auth.repository.PrivilegeRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.util.Locale;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -26,19 +25,17 @@ public class PrivilegeService {
   @SuppressWarnings("null")
   public Privilege create(CreatePrivilegeCommand command, String actor) {
     Objects.requireNonNull(command, "command is required");
-    requireText(command.code(), "code");
     Objects.requireNonNull(command.effect(), "effect is required");
-    Objects.requireNonNull(command.resourceType(), "resourceType is required");
-    requireResourceTypeKey(command.resourceType(), command.resourceTypeKey());
+    Objects.requireNonNull(command.resourceOrigin(), "resourceOrigin is required");
+    requireResource(command.resource());
     Objects.requireNonNull(command.action(), "action is required");
     requireText(actor, "actor");
 
     Privilege privilege =
         Privilege.builder()
-            .code(command.code())
             .effect(command.effect())
-            .resourceType(command.resourceType())
-            .resourceTypeKey(command.resourceTypeKey())
+            .resourceOrigin(command.resourceOrigin())
+            .resource(command.resource())
             .action(command.action())
             .conditionExpression(normalizeCondition(command.conditionExpression()))
             .createdBy(actor)
@@ -54,10 +51,9 @@ public class PrivilegeService {
   private String serializeState(Privilege privilege) {
     PrivilegeState state =
         new PrivilegeState(
-            privilege.getCode(),
             privilege.getEffect(),
-            privilege.getResourceType(),
-            privilege.getResourceTypeKey(),
+            privilege.getResourceOrigin(),
+            privilege.getResource(),
             privilege.getAction(),
             privilege.getConditionExpression(),
             privilege.getVersion(),
@@ -70,14 +66,11 @@ public class PrivilegeService {
     }
   }
 
-  private static void requireResourceTypeKey(
-      PrivilegeResourceType resourceType, String resourceTypeKey) {
-    requireText(resourceTypeKey, "resourceTypeKey");
-    String expectedPrefix = resourceType.name().toLowerCase(Locale.ROOT) + ":";
-    if (!resourceTypeKey.startsWith(expectedPrefix)
-        || resourceTypeKey.length() == expectedPrefix.length()) {
-      throw new IllegalArgumentException(
-          "resourceTypeKey must start with " + expectedPrefix + " and include a type");
+  // The origin is carried by resourceOrigin, so the resource name must stay unprefixed.
+  private static void requireResource(String resource) {
+    requireText(resource, "resource");
+    if (resource.indexOf(':') >= 0) {
+      throw new IllegalArgumentException("resource must not carry an origin prefix");
     }
   }
 
@@ -94,10 +87,9 @@ public class PrivilegeService {
   }
 
   private record PrivilegeState(
-      String code,
       PrivilegeEffect effect,
-      PrivilegeResourceType resourceType,
-      String resourceTypeKey,
+      PrivilegeResourceOrigin resourceOrigin,
+      String resource,
       PrivilegeAction action,
       String conditionExpression,
       long version,
