@@ -1,0 +1,39 @@
+# Account privilege vocabulary and ITIP_ADMIN assignments for existing dev databases.
+databaseChangeLog:
+- changeSet:
+    id: 0004-1-account-privileges
+    author: copilot
+    context: dev
+    changes:
+    - sql:
+        splitStatements: false
+        sql: |
+          UPDATE privilege
+          SET action = 'DISABLE'
+          WHERE resource_origin = 'ITIP'
+            AND resource = 'ACCOUNT'
+            AND action = 'DISABLE_ACCOUNT';
+
+          INSERT INTO privilege (
+            effect, resource_origin, resource, action, condition_expression,
+            version, created_by, updated_by, created_at, updated_at
+          )
+          VALUES
+            ('ALLOW', 'ITIP', 'ACCOUNT', 'READ', NULL, 0, 'migration', 'migration', now(), now()),
+            ('ALLOW', 'ITIP', 'ACCOUNT', 'CREATE', NULL, 0, 'migration', 'migration', now(), now()),
+            ('ALLOW', 'ITIP', 'ACCOUNT', 'UPDATE', NULL, 0, 'migration', 'migration', now(), now()),
+            ('ALLOW', 'ITIP', 'ACCOUNT', 'DISABLE', NULL, 0, 'migration', 'migration', now(), now())
+          ON CONFLICT (resource_origin, resource, action, effect) DO NOTHING;
+
+          INSERT INTO role_privilege_assignment (role_id, privilege_id, assigned_at)
+          SELECT r.id, p.id, now()
+          FROM role r
+          JOIN privilege p
+            ON (p.resource_origin, p.resource, p.action, p.effect) IN (
+                 ('ITIP', 'ACCOUNT', 'READ',    'ALLOW'),
+                 ('ITIP', 'ACCOUNT', 'CREATE',  'ALLOW'),
+                 ('ITIP', 'ACCOUNT', 'UPDATE',  'ALLOW'),
+                 ('ITIP', 'ACCOUNT', 'DISABLE', 'ALLOW')
+               )
+          WHERE r.name = 'ITIP_ADMIN'
+          ON CONFLICT DO NOTHING;

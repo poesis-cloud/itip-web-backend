@@ -20,6 +20,7 @@ public class PrivilegeService {
   private final PrivilegeRepository privilegeRepository;
   private final PrivilegeChangeAuditService privilegeChangeAuditService;
   private final ObjectMapper objectMapper;
+  private final ConditionExpressionEvaluator conditionExpressionEvaluator;
 
   @Transactional
   @SuppressWarnings("null")
@@ -31,13 +32,19 @@ public class PrivilegeService {
     Objects.requireNonNull(command.action(), "action is required");
     requireText(actor, "actor");
 
+    String conditionExpression = normalizeCondition(command.conditionExpression());
+    if (!conditionExpressionEvaluator.isValid(conditionExpression)) {
+      throw new IllegalArgumentException(
+          "conditionExpression must be a valid CEL boolean expression");
+    }
+
     Privilege privilege =
         Privilege.builder()
             .effect(command.effect())
             .resourceOrigin(command.resourceOrigin())
             .resource(command.resource())
             .action(command.action())
-            .conditionExpression(normalizeCondition(command.conditionExpression()))
+            .conditionExpression(conditionExpression)
             .createdBy(actor)
             .updatedBy(actor)
             .build();

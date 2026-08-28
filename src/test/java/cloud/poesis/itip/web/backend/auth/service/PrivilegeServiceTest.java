@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -29,12 +30,19 @@ class PrivilegeServiceTest {
 
   @Mock private PrivilegeChangeAuditService privilegeChangeAuditService;
 
+  @Mock private ConditionExpressionEvaluator conditionExpressionEvaluator;
+
   private PrivilegeService privilegeService;
 
   @BeforeEach
   void setUp() {
     privilegeService =
-        new PrivilegeService(privilegeRepository, privilegeChangeAuditService, new ObjectMapper());
+        new PrivilegeService(
+            privilegeRepository,
+            privilegeChangeAuditService,
+            new ObjectMapper(),
+            conditionExpressionEvaluator);
+    lenient().when(conditionExpressionEvaluator.isValid(any())).thenReturn(true);
   }
 
   @Test
@@ -72,6 +80,17 @@ class PrivilegeServiceTest {
     Privilege result = privilegeService.create(validCommand("  "), "alice");
 
     assertThat(result.getConditionExpression()).isNull();
+  }
+
+  @Test
+  void createShouldRejectInvalidCelCondition() {
+    when(conditionExpressionEvaluator.isValid("target.ownerId ==")).thenReturn(false);
+
+    assertThatThrownBy(() -> privilegeService.create(validCommand("target.ownerId =="), "alice"))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("valid CEL boolean expression");
+
+    verifyNoInteractions(privilegeRepository, privilegeChangeAuditService);
   }
 
   @Test

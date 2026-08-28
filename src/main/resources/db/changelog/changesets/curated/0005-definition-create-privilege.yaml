@@ -1,0 +1,28 @@
+# Definition creation privilege assigned to ITIP_ADMIN.
+databaseChangeLog:
+- changeSet:
+    id: 0005-1-definition-create-privilege
+    author: copilot
+    context: dev
+    changes:
+    - sql:
+        splitStatements: false
+        sql: |
+          INSERT INTO privilege (
+            effect, resource_origin, resource, action, condition_expression,
+            version, created_by, updated_by, created_at, updated_at
+          )
+          VALUES
+            ('ALLOW', 'DEFMAN', 'DEFINITION', 'CREATE', NULL, 0, 'migration', 'migration', now(), now())
+          ON CONFLICT (resource_origin, resource, action, effect) DO NOTHING;
+
+          INSERT INTO role_privilege_assignment (role_id, privilege_id, assigned_at)
+          SELECT r.id, p.id, now()
+          FROM role r
+          JOIN privilege p
+            ON p.resource_origin = 'DEFMAN'
+           AND p.resource = 'DEFINITION'
+           AND p.action = 'CREATE'
+           AND p.effect = 'ALLOW'
+          WHERE r.name = 'ITIP_ADMIN'
+          ON CONFLICT DO NOTHING;

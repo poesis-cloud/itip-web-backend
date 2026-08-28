@@ -43,7 +43,7 @@ class AccountServiceTest {
             .effect(PrivilegeEffect.DENY)
             .resourceOrigin(PrivilegeResourceOrigin.ITIP)
             .resource("ACCOUNT")
-            .action(PrivilegeAction.DISABLE_ACCOUNT)
+            .action(PrivilegeAction.DISABLE)
             .build();
     RolePrivilegeAssignment denyRolePrivilegeAssignment =
         RolePrivilegeAssignment.builder().id(UUID.randomUUID()).privilege(denyPrivilege).build();

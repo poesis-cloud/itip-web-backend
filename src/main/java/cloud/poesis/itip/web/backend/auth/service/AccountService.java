@@ -7,6 +7,7 @@ import cloud.poesis.itip.web.backend.auth.entity.PrivilegeEffect;
 import cloud.poesis.itip.web.backend.auth.repository.AccountRepository;
 import java.time.Instant;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -64,6 +65,29 @@ public class AccountService implements UserDetailsService {
     return accountRepository
         .findByEmail(email)
         .orElseThrow(() -> new UsernameNotFoundException("Account not found: " + email));
+  }
+
+  public Account loadAccountWithRolesAndPrivileges(String email) {
+    return accountRepository
+        .findByEmailWithRolesAndPrivileges(email)
+        .orElseThrow(() -> new UsernameNotFoundException("Account not found: " + email));
+  }
+
+  public List<Privilege> activePrivileges(Account account) {
+    Instant now = Instant.now();
+    return snapshot(account.getAccountRoleAssignments()).stream()
+        .filter(
+            assignment ->
+                assignment.getUnassignedAt() == null
+                    && (assignment.getExpiresAt() == null
+                        || assignment.getExpiresAt().isAfter(now)))
+        .map(assignment -> assignment.getRole())
+        .filter(Objects::nonNull)
+        .flatMap(role -> snapshot(role.getRolePrivilegeAssignments()).stream())
+        .filter(rolePrivilegeAssignment -> rolePrivilegeAssignment.getUnassignedAt() == null)
+        .map(rolePrivilegeAssignment -> rolePrivilegeAssignment.getPrivilege())
+        .filter(Objects::nonNull)
+        .toList();
   }
 
   private static <T> Set<T> snapshot(Set<T> source) {

@@ -23,6 +23,8 @@ spring:
     contexts: ${ITIP_LIQUIBASE_CONTEXTS:prod}
 
 itip:
+  defman:
+    base-url: ${ITIP_DEFMAN_BASE_URL:}
   security:
     permit-all: ${ITIP_SECURITY_PERMIT_ALL:false}
     jwt:
