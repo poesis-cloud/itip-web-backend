@@ -2,13 +2,15 @@ package cloud.poesis.itip.web.backend.auth.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import cloud.poesis.itip.web.backend.auth.entity.Account;
 import cloud.poesis.itip.web.backend.auth.entity.AccountRoleAssignment;
+import cloud.poesis.itip.web.backend.auth.entity.Capability;
 import cloud.poesis.itip.web.backend.auth.entity.Privilege;
 import cloud.poesis.itip.web.backend.auth.entity.PrivilegeAction;
-import cloud.poesis.itip.web.backend.auth.entity.PrivilegeEffect;
 import cloud.poesis.itip.web.backend.auth.entity.PrivilegeResourceOrigin;
 import cloud.poesis.itip.web.backend.auth.entity.Role;
 import cloud.poesis.itip.web.backend.auth.entity.RolePrivilegeAssignment;
@@ -18,6 +20,7 @@ import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -29,7 +32,46 @@ class AccountServiceTest {
 
   @Mock private AccountRepository accountRepository;
 
+  @Mock private RoleService roleService;
+
+  @Mock private AccountRoleAssignmentService accountRoleAssignmentService;
+
   @InjectMocks private AccountService accountService;
+
+  @Test
+  @SuppressWarnings("null")
+  void createShouldSaveAccountThenAssignResolvedDefaultRole() {
+    Account account = Account.builder().email("new@itip.local").build();
+    Account savedAccount = Account.builder().id(UUID.randomUUID()).email("new@itip.local").build();
+    Role defaultRole =
+        Role.builder().id(UUID.randomUUID()).name(RoleService.DEFAULT_ROLE_NAME).build();
+    when(accountRepository.save(account)).thenReturn(savedAccount);
+    when(roleService.requireDefaultRole()).thenReturn(defaultRole);
+
+    Account created = accountService.create(account);
+
+    assertThat(created).isSameAs(savedAccount);
+    InOrder inOrder = inOrder(accountRepository, roleService, accountRoleAssignmentService);
+    inOrder.verify(accountRepository).save(account);
+    inOrder.verify(roleService).requireDefaultRole();
+    inOrder.verify(accountRoleAssignmentService).assign(savedAccount, defaultRole);
+  }
+
+  @Test
+  @SuppressWarnings("null")
+  void createShouldPropagateFailureWhenDefaultRoleIsMissing() {
+    Account account = Account.builder().email("new@itip.local").build();
+    Account savedAccount = Account.builder().id(UUID.randomUUID()).email("new@itip.local").build();
+    when(accountRepository.save(account)).thenReturn(savedAccount);
+    when(roleService.requireDefaultRole())
+        .thenThrow(new IllegalStateException("Default role ITIP_USER is not configured"));
+
+    assertThatThrownBy(() -> accountService.create(account))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessage("Default role ITIP_USER is not configured");
+
+    verifyNoInteractions(accountRoleAssignmentService);
+  }
 
   @Test
   void loadUserByUsernameShouldReturnUserDetailsWithOnlyActiveAuthorities() {
@@ -37,16 +79,13 @@ class AccountServiceTest {
     RolePrivilegeAssignment activeRolePrivilegeAssignment =
         RolePrivilegeAssignment.builder().id(UUID.randomUUID()).privilege(activePrivilege).build();
 
-    Privilege denyPrivilege =
-        Privilege.builder()
+    Privilege disabledCapabilityPrivilege = allowPrivilege("ACCOUNT", PrivilegeAction.DISABLE);
+    disabledCapabilityPrivilege.getCapability().setEnabled(false);
+    RolePrivilegeAssignment disabledCapabilityRolePrivilegeAssignment =
+        RolePrivilegeAssignment.builder()
             .id(UUID.randomUUID())
-            .effect(PrivilegeEffect.DENY)
-            .resourceOrigin(PrivilegeResourceOrigin.ITIP)
-            .resource("ACCOUNT")
-            .action(PrivilegeAction.DISABLE)
+            .privilege(disabledCapabilityPrivilege)
             .build();
-    RolePrivilegeAssignment denyRolePrivilegeAssignment =
-        RolePrivilegeAssignment.builder().id(UUID.randomUUID()).privilege(denyPrivilege).build();
 
     Privilege revokedPrivilege = allowPrivilege("PRIVILEGE", PrivilegeAction.CREATE);
     RolePrivilegeAssignment revokedRolePrivilegeAssignment =
@@ -63,7 +102,7 @@ class AccountServiceTest {
             .rolePrivilegeAssignments(
                 Set.of(
                     activeRolePrivilegeAssignment,
-                    denyRolePrivilegeAssignment,
+                    disabledCapabilityRolePrivilegeAssignment,
                     revokedRolePrivilegeAssignment))
             .build();
 
@@ -351,13 +390,15 @@ class AccountServiceTest {
         .containsExactlyInAnyOrder("ITIP:ACCOUNT:READ");
   }
 
-  private static Privilege allowPrivilege(String resource, PrivilegeAction action) {
-    return Privilege.builder()
-        .id(UUID.randomUUID())
-        .effect(PrivilegeEffect.ALLOW)
-        .resourceOrigin(PrivilegeResourceOrigin.ITIP)
-        .resource(resource)
-        .action(action)
-        .build();
+  private static Privilege allowPrivilege(String resource, PrivilegeAction operation) {
+    Capability capability =
+        Capability.builder()
+            .id(UUID.randomUUID())
+            .resourceOrigin(PrivilegeResourceOrigin.ITIP)
+            .resource(resource)
+            .operation(operation)
+            .enabled(true)
+            .build();
+    return Privilege.builder().id(UUID.randomUUID()).capability(capability).build();
   }
 }

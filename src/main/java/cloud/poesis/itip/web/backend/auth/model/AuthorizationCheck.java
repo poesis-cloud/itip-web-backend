@@ -9,5 +9,5 @@ import java.util.UUID;
 public record AuthorizationCheck(
     @NotNull PrivilegeResourceOrigin origin,
     @NotBlank String resource,
-    @NotNull PrivilegeAction action,
+    @NotNull PrivilegeAction operation,
     UUID resourceId) {}

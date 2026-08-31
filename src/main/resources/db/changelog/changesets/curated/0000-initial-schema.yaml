@@ -4,368 +4,153 @@ databaseChangeLog:
     author: hamza (generated)
     changes:
     - createTable:
-        columns:
-        - column:
-            constraints:
-              nullable: false
-              primaryKey: true
-              primaryKeyName: accountPK
-            name: id
-            type: UUID
-        - column:
-            constraints:
-              nullable: false
-            name: created_at
-            type: TIMESTAMP(6) WITH TIME ZONE
-        - column:
-            constraints:
-              nullable: false
-            name: email
-            type: VARCHAR(255)
-        - column:
-            constraints:
-              nullable: false
-            name: enabled
-            type: BOOLEAN
-        - column:
-            name: full_name
-            type: VARCHAR(255)
-        - column:
-            constraints:
-              nullable: false
-            name: password_hash
-            type: VARCHAR(255)
-        - column:
-            constraints:
-              nullable: false
-            name: updated_at
-            type: TIMESTAMP(6) WITH TIME ZONE
         tableName: account
+        columns:
+        - column: {name: id, type: UUID, constraints: {nullable: false, primaryKey: true, primaryKeyName: accountPK}}
+        - column: {name: created_at, type: TIMESTAMP(6) WITH TIME ZONE, constraints: {nullable: false}}
+        - column: {name: email, type: VARCHAR(255), constraints: {nullable: false}}
+        - column: {name: enabled, type: BOOLEAN, defaultValueBoolean: true, constraints: {nullable: false}}
+        - column: {name: full_name, type: VARCHAR(255)}
+        - column: {name: password_hash, type: VARCHAR(255), constraints: {nullable: false}}
+        - column: {name: updated_at, type: TIMESTAMP(6) WITH TIME ZONE, constraints: {nullable: false}}
 - changeSet:
     id: 1787909228270-2
     author: hamza (generated)
     changes:
     - createTable:
-        columns:
-        - column:
-            constraints:
-              nullable: false
-              primaryKey: true
-              primaryKeyName: account_role_assignmentPK
-            name: id
-            type: UUID
-        - column:
-            constraints:
-              nullable: false
-            name: assigned_at
-            type: TIMESTAMP(6) WITH TIME ZONE
-        - column:
-            name: expires_at
-            type: TIMESTAMP(6) WITH TIME ZONE
-        - column:
-            name: revoked_at
-            type: TIMESTAMP(6) WITH TIME ZONE
-        - column:
-            constraints:
-              nullable: false
-            name: account_id
-            type: UUID
-        - column:
-            name: assigned_by
-            type: UUID
-        - column:
-            constraints:
-              nullable: false
-            name: role_id
-            type: UUID
         tableName: account_role_assignment
+        columns:
+        - column: {name: id, type: UUID, constraints: {nullable: false, primaryKey: true, primaryKeyName: account_role_assignmentPK}}
+        - column: {name: assigned_at, type: TIMESTAMP(6) WITH TIME ZONE, constraints: {nullable: false}}
+        - column: {name: expires_at, type: TIMESTAMP(6) WITH TIME ZONE}
+        - column: {name: revoked_at, type: TIMESTAMP(6) WITH TIME ZONE}
+        - column: {name: account_id, type: UUID, constraints: {nullable: false}}
+        - column: {name: assigned_by, type: UUID}
+        - column: {name: role_id, type: UUID, constraints: {nullable: false}}
 - changeSet:
     id: 1787909228270-3
     author: hamza (generated)
     changes:
     - createTable:
+        tableName: capability
         columns:
-        - column:
-            constraints:
-              nullable: false
-              primaryKey: true
-              primaryKeyName: privilegePK
-            name: id
-            type: UUID
-        - column:
-            constraints:
-              nullable: false
-            name: action
-            type: VARCHAR(255)
-        - column:
-            name: condition_expression
-            type: TEXT
-        - column:
-            constraints:
-              nullable: false
-            name: created_at
-            type: TIMESTAMP(6) WITH TIME ZONE
-        - column:
-            constraints:
-              nullable: false
-            name: created_by
-            type: VARCHAR(255)
-        - column:
-            constraints:
-              nullable: false
-            name: effect
-            type: VARCHAR(255)
-        - column:
-            constraints:
-              nullable: false
-            name: resource
-            type: VARCHAR(255)
-        - column:
-            constraints:
-              nullable: false
-            name: resource_origin
-            type: VARCHAR(255)
-        - column:
-            constraints:
-              nullable: false
-            name: updated_at
-            type: TIMESTAMP(6) WITH TIME ZONE
-        - column:
-            constraints:
-              nullable: false
-            name: updated_by
-            type: VARCHAR(255)
-        - column:
-            constraints:
-              nullable: false
-            name: version
-            type: BIGINT
-        tableName: privilege
+        - column: {name: id, type: UUID, constraints: {nullable: false, primaryKey: true, primaryKeyName: capabilityPK}}
+        - column: {name: created_at, type: TIMESTAMP(6) WITH TIME ZONE, constraints: {nullable: false}}
+        - column: {name: created_by, type: VARCHAR(255), constraints: {nullable: false}}
+        - column: {name: enabled, type: BOOLEAN, defaultValueBoolean: true, constraints: {nullable: false}}
+        - column: {name: operation, type: VARCHAR(255), constraints: {nullable: false}}
+        - column: {name: resource, type: VARCHAR(255), constraints: {nullable: false}}
+        - column: {name: resource_origin, type: VARCHAR(255), constraints: {nullable: false}}
+        - column: {name: system_managed, type: BOOLEAN, defaultValueBoolean: false, constraints: {nullable: false}}
+        - column: {name: updated_at, type: TIMESTAMP(6) WITH TIME ZONE, constraints: {nullable: false}}
+        - column: {name: updated_by, type: VARCHAR(255), constraints: {nullable: false}}
+        - column: {name: version, type: BIGINT, constraints: {nullable: false}}
 - changeSet:
     id: 1787909228270-4
     author: hamza (generated)
     changes:
     - createTable:
+        tableName: capability_policy
         columns:
-        - column:
-            constraints:
-              nullable: false
-              primaryKey: true
-              primaryKeyName: privilege_change_auditPK
-            name: id
-            type: UUID
-        - column:
-            constraints:
-              nullable: false
-            name: action_at
-            type: TIMESTAMP(6) WITH TIME ZONE
-        - column:
-            constraints:
-              nullable: false
-            name: action_by
-            type: VARCHAR(255)
-        - column:
-            constraints:
-              nullable: false
-            name: action_type
-            type: VARCHAR(255)
-        - column:
-            constraints:
-              nullable: false
-            name: new_state
-            type: TEXT
-        - column:
-            constraints:
-              nullable: false
-            name: previous_state
-            type: TEXT
-        - column:
-            constraints:
-              nullable: false
-            name: privilege_version
-            type: BIGINT
-        - column:
-            constraints:
-              nullable: false
-            name: privilege_id
-            type: UUID
-        tableName: privilege_change_audit
+        - column: {name: capability_id, type: UUID, constraints: {nullable: false, primaryKey: true, primaryKeyName: capability_policyPK}}
+        - column: {name: policy_id, type: UUID, constraints: {nullable: false, primaryKey: true, primaryKeyName: capability_policyPK}}
 - changeSet:
     id: 1787909228270-5
     author: hamza (generated)
     changes:
     - createTable:
+        tableName: policy
         columns:
-        - column:
-            constraints:
-              nullable: false
-              primaryKey: true
-              primaryKeyName: rolePK
-            name: id
-            type: UUID
-        - column:
-            constraints:
-              nullable: false
-            name: created_at
-            type: TIMESTAMP(6) WITH TIME ZONE
-        - column:
-            constraints:
-              nullable: false
-            name: name
-            type: VARCHAR(255)
-        - column:
-            constraints:
-              nullable: false
-            name: updated_at
-            type: TIMESTAMP(6) WITH TIME ZONE
-        tableName: role
+        - column: {name: id, type: UUID, constraints: {nullable: false, primaryKey: true, primaryKeyName: policyPK}}
+        - column: {name: condition_expression, type: TEXT, constraints: {nullable: false}}
+        - column: {name: created_at, type: TIMESTAMP(6) WITH TIME ZONE, constraints: {nullable: false}}
+        - column: {name: created_by, type: VARCHAR(255), constraints: {nullable: false}}
+        - column: {name: updated_at, type: TIMESTAMP(6) WITH TIME ZONE, constraints: {nullable: false}}
+        - column: {name: updated_by, type: VARCHAR(255), constraints: {nullable: false}}
+        - column: {name: version, type: BIGINT, constraints: {nullable: false}}
 - changeSet:
     id: 1787909228270-6
     author: hamza (generated)
     changes:
     - createTable:
+        tableName: privilege
         columns:
-        - column:
-            constraints:
-              nullable: false
-              primaryKey: true
-              primaryKeyName: role_privilege_assignmentPK
-            name: id
-            type: UUID
-        - column:
-            constraints:
-              nullable: false
-            name: assigned_at
-            type: TIMESTAMP(6) WITH TIME ZONE
-        - column:
-            name: revoked_at
-            type: TIMESTAMP(6) WITH TIME ZONE
-        - column:
-            name: assigned_by
-            type: UUID
-        - column:
-            constraints:
-              nullable: false
-            name: privilege_id
-            type: UUID
-        - column:
-            constraints:
-              nullable: false
-            name: role_id
-            type: UUID
-        tableName: role_privilege_assignment
+        - column: {name: id, type: UUID, constraints: {nullable: false, primaryKey: true, primaryKeyName: privilegePK}}
+        - column: {name: capability_id, type: UUID, constraints: {nullable: false}}
+        - column: {name: created_at, type: TIMESTAMP(6) WITH TIME ZONE, constraints: {nullable: false}}
+        - column: {name: created_by, type: VARCHAR(255), constraints: {nullable: false}}
+        - column: {name: updated_at, type: TIMESTAMP(6) WITH TIME ZONE, constraints: {nullable: false}}
+        - column: {name: updated_by, type: VARCHAR(255), constraints: {nullable: false}}
+        - column: {name: version, type: BIGINT, constraints: {nullable: false}}
 - changeSet:
     id: 1787909228270-7
     author: hamza (generated)
     changes:
-    - addUniqueConstraint:
-        columnNames: email
-        constraintName: UC_ACCOUNTEMAIL_COL
-        tableName: account
+    - createTable:
+        tableName: privilege_policy
+        columns:
+        - column: {name: privilege_id, type: UUID, constraints: {nullable: false, primaryKey: true, primaryKeyName: privilege_policyPK}}
+        - column: {name: policy_id, type: UUID, constraints: {nullable: false, primaryKey: true, primaryKeyName: privilege_policyPK}}
 - changeSet:
     id: 1787909228270-8
     author: hamza (generated)
     changes:
-    - addUniqueConstraint:
-        columnNames: name
-        constraintName: UC_ROLENAME_COL
-        tableName: role
+    - createTable:
+        tableName: privilege_change_audit
+        columns:
+        - column: {name: id, type: UUID, constraints: {nullable: false, primaryKey: true, primaryKeyName: privilege_change_auditPK}}
+        - column: {name: action_at, type: TIMESTAMP(6) WITH TIME ZONE, constraints: {nullable: false}}
+        - column: {name: action_by, type: VARCHAR(255), constraints: {nullable: false}}
+        - column: {name: action_type, type: VARCHAR(255), constraints: {nullable: false}}
+        - column: {name: new_state, type: TEXT, constraints: {nullable: false}}
+        - column: {name: previous_state, type: TEXT, constraints: {nullable: false}}
+        - column: {name: privilege_version, type: BIGINT, constraints: {nullable: false}}
+        - column: {name: privilege_id, type: UUID, constraints: {nullable: false}}
 - changeSet:
     id: 1787909228270-9
     author: hamza (generated)
     changes:
-    - addUniqueConstraint:
-        columnNames: resource_origin, resource, action, effect
-        constraintName: uq_privilege_identity
-        tableName: privilege
+    - createTable:
+        tableName: role
+        columns:
+        - column: {name: id, type: UUID, constraints: {nullable: false, primaryKey: true, primaryKeyName: rolePK}}
+        - column: {name: created_at, type: TIMESTAMP(6) WITH TIME ZONE, constraints: {nullable: false}}
+        - column: {name: name, type: VARCHAR(255), constraints: {nullable: false}}
+        - column: {name: system_managed, type: BOOLEAN, defaultValueBoolean: false, constraints: {nullable: false}}
+        - column: {name: updated_at, type: TIMESTAMP(6) WITH TIME ZONE, constraints: {nullable: false}}
 - changeSet:
     id: 1787909228270-10
     author: hamza (generated)
     changes:
-    - addForeignKeyConstraint:
-        baseColumnNames: account_id
-        baseTableName: account_role_assignment
-        constraintName: fk_account_role_assignment_account
-        deferrable: false
-        initiallyDeferred: false
-        referencedColumnNames: id
-        referencedTableName: account
-        validate: true
+    - createTable:
+        tableName: role_privilege_assignment
+        columns:
+        - column: {name: id, type: UUID, constraints: {nullable: false, primaryKey: true, primaryKeyName: role_privilege_assignmentPK}}
+        - column: {name: assigned_at, type: TIMESTAMP(6) WITH TIME ZONE, constraints: {nullable: false}}
+        - column: {name: revoked_at, type: TIMESTAMP(6) WITH TIME ZONE}
+        - column: {name: assigned_by, type: UUID}
+        - column: {name: privilege_id, type: UUID, constraints: {nullable: false}}
+        - column: {name: role_id, type: UUID, constraints: {nullable: false}}
 - changeSet:
     id: 1787909228270-11
     author: hamza (generated)
     changes:
-    - addForeignKeyConstraint:
-        baseColumnNames: assigned_by
-        baseTableName: account_role_assignment
-        constraintName: fk_account_role_assignment_assigned_by
-        deferrable: false
-        initiallyDeferred: false
-        referencedColumnNames: id
-        referencedTableName: account
-        validate: true
+    - addUniqueConstraint: {tableName: account, columnNames: email, constraintName: UC_ACCOUNTEMAIL_COL}
+    - addUniqueConstraint: {tableName: role, columnNames: name, constraintName: UC_ROLENAME_COL}
+    - addUniqueConstraint: {tableName: capability, columnNames: "resource_origin, resource, operation", constraintName: uq_capability_identity}
 - changeSet:
     id: 1787909228270-12
     author: hamza (generated)
     changes:
-    - addForeignKeyConstraint:
-        baseColumnNames: role_id
-        baseTableName: account_role_assignment
-        constraintName: fk_account_role_assignment_role
-        deferrable: false
-        initiallyDeferred: false
-        referencedColumnNames: id
-        referencedTableName: role
-        validate: true
-- changeSet:
-    id: 1787909228270-13
-    author: hamza (generated)
-    changes:
-    - addForeignKeyConstraint:
-        baseColumnNames: privilege_id
-        baseTableName: privilege_change_audit
-        constraintName: fk_privilege_change_audit_privilege
-        deferrable: false
-        initiallyDeferred: false
-        referencedColumnNames: id
-        referencedTableName: privilege
-        validate: true
-- changeSet:
-    id: 1787909228270-14
-    author: hamza (generated)
-    changes:
-    - addForeignKeyConstraint:
-        baseColumnNames: assigned_by
-        baseTableName: role_privilege_assignment
-        constraintName: fk_role_privilege_assignment_assigned_by
-        deferrable: false
-        initiallyDeferred: false
-        referencedColumnNames: id
-        referencedTableName: account
-        validate: true
-- changeSet:
-    id: 1787909228270-15
-    author: hamza (generated)
-    changes:
-    - addForeignKeyConstraint:
-        baseColumnNames: privilege_id
-        baseTableName: role_privilege_assignment
-        constraintName: fk_role_privilege_assignment_privilege
-        deferrable: false
-        initiallyDeferred: false
-        referencedColumnNames: id
-        referencedTableName: privilege
-        validate: true
-- changeSet:
-    id: 1787909228270-16
-    author: hamza (generated)
-    changes:
-    - addForeignKeyConstraint:
-        baseColumnNames: role_id
-        baseTableName: role_privilege_assignment
-        constraintName: fk_role_privilege_assignment_role
-        deferrable: false
-        initiallyDeferred: false
-        referencedColumnNames: id
-        referencedTableName: role
-        validate: true
+    - addForeignKeyConstraint: {baseTableName: account_role_assignment, baseColumnNames: account_id, constraintName: fk_account_role_assignment_account, referencedTableName: account, referencedColumnNames: id}
+    - addForeignKeyConstraint: {baseTableName: account_role_assignment, baseColumnNames: assigned_by, constraintName: fk_account_role_assignment_assigned_by, referencedTableName: account, referencedColumnNames: id}
+    - addForeignKeyConstraint: {baseTableName: account_role_assignment, baseColumnNames: role_id, constraintName: fk_account_role_assignment_role, referencedTableName: role, referencedColumnNames: id}
+    - addForeignKeyConstraint: {baseTableName: privilege_change_audit, baseColumnNames: privilege_id, constraintName: fk_privilege_change_audit_privilege, referencedTableName: privilege, referencedColumnNames: id}
+    - addForeignKeyConstraint: {baseTableName: role_privilege_assignment, baseColumnNames: assigned_by, constraintName: fk_role_privilege_assignment_assigned_by, referencedTableName: account, referencedColumnNames: id}
+    - addForeignKeyConstraint: {baseTableName: role_privilege_assignment, baseColumnNames: privilege_id, constraintName: fk_role_privilege_assignment_privilege, referencedTableName: privilege, referencedColumnNames: id}
+    - addForeignKeyConstraint: {baseTableName: role_privilege_assignment, baseColumnNames: role_id, constraintName: fk_role_privilege_assignment_role, referencedTableName: role, referencedColumnNames: id}
+    - addForeignKeyConstraint: {baseTableName: capability_policy, baseColumnNames: capability_id, constraintName: FKbcnekxhact4q4e8d0ad4xkaj0, referencedTableName: capability, referencedColumnNames: id}
+    - addForeignKeyConstraint: {baseTableName: capability_policy, baseColumnNames: policy_id, constraintName: FKsn8qqcvfcm2vdtox12jnavma3, referencedTableName: policy, referencedColumnNames: id}
+    - addForeignKeyConstraint: {baseTableName: privilege, baseColumnNames: capability_id, constraintName: fk_privilege_capability, referencedTableName: capability, referencedColumnNames: id}
+    - addForeignKeyConstraint: {baseTableName: privilege_policy, baseColumnNames: privilege_id, constraintName: FK376ay1dchswafhj2hydmboarx, referencedTableName: privilege, referencedColumnNames: id}
+    - addForeignKeyConstraint: {baseTableName: privilege_policy, baseColumnNames: policy_id, constraintName: FK29w76rtel623jn60op6dxccps, referencedTableName: policy, referencedColumnNames: id}

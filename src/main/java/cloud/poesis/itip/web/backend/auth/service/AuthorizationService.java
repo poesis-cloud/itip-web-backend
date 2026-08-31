@@ -1,14 +1,15 @@
 package cloud.poesis.itip.web.backend.auth.service;
 
 import cloud.poesis.itip.web.backend.auth.entity.Account;
+import cloud.poesis.itip.web.backend.auth.entity.Policy;
 import cloud.poesis.itip.web.backend.auth.entity.Privilege;
-import cloud.poesis.itip.web.backend.auth.entity.PrivilegeEffect;
 import cloud.poesis.itip.web.backend.auth.model.AuthorizationCheck;
 import cloud.poesis.itip.web.backend.auth.model.AuthorizationDecision;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -29,28 +30,22 @@ public class AuthorizationService {
 
   private AuthorizationDecision decide(
       Account account, List<Privilege> privileges, AuthorizationCheck check) {
-    boolean allowed = false;
-    if (hasValidShape(check)) {
-      List<Privilege> matching = privileges.stream().filter(matches(check)).toList();
-      boolean denied =
-          matching.stream()
-              .filter(privilege -> privilege.getEffect() == PrivilegeEffect.DENY)
-              .anyMatch(privilege -> applies(privilege, account, check));
-      boolean allowedRule =
-          matching.stream()
-              .filter(privilege -> privilege.getEffect() == PrivilegeEffect.ALLOW)
-              .anyMatch(privilege -> applies(privilege, account, check));
-      allowed = !denied && allowedRule;
-    }
+    boolean allowed =
+        hasValidShape(check)
+            && account.isEnabled()
+            && privileges.stream()
+                .filter(matches(check))
+                .filter(privilege -> privilege.getCapability().isEnabled())
+                .anyMatch(privilege -> applies(privilege, account, check));
     return new AuthorizationDecision(
-        check.origin(), check.resource(), check.action(), check.resourceId(), allowed);
+        check.origin(), check.resource(), check.operation(), check.resourceId(), allowed);
   }
 
   private Predicate<Privilege> matches(AuthorizationCheck check) {
     return privilege ->
-        privilege.getResourceOrigin() == check.origin()
-            && Objects.equals(privilege.getResource(), check.resource())
-            && privilege.getAction() == check.action();
+        privilege.getCapability().getResourceOrigin() == check.origin()
+            && Objects.equals(privilege.getCapability().getResource(), check.resource())
+            && privilege.getCapability().getOperation() == check.operation();
   }
 
   private boolean applies(Privilege privilege, Account account, AuthorizationCheck check) {
@@ -60,16 +55,24 @@ public class AuthorizationService {
       return false;
     }
 
-    String condition = privilege.getConditionExpression();
-    if (condition == null || condition.isBlank()) {
+    return applies(privilege.getCapability().getPolicies(), account, target)
+        && applies(privilege.getPolicies(), account, target);
+  }
+
+  private boolean applies(
+      Set<Policy> policies, Account account, Optional<Map<String, Object>> target) {
+    if (policies.isEmpty()) {
       return true;
     }
-    if (check.resourceId() == null) {
+    if (target.isEmpty()) {
       return false;
     }
-    return conditionExpressionEvaluator.evaluate(
-        condition,
-        Map.of("actor", Map.of("id", account.getId().toString()), "target", target.get()));
+    Map<String, Object> context =
+        Map.of("actor", Map.of("id", account.getId().toString()), "target", target.get());
+    return policies.stream()
+        .allMatch(
+            policy ->
+                conditionExpressionEvaluator.evaluate(policy.getConditionExpression(), context));
   }
 
   private Optional<Map<String, Object>> resolve(AuthorizationCheck check) {
@@ -85,6 +88,6 @@ public class AuthorizationService {
         && check.origin() != null
         && check.resource() != null
         && !check.resource().isBlank()
-        && check.action() != null;
+        && check.operation() != null;
   }
 }

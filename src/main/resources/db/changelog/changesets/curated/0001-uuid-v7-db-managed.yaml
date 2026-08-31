@@ -74,6 +74,8 @@ databaseChangeLog:
           -- DEFAULT covers omitted columns; the trigger additionally covers explicit NULL inserts.
           ALTER TABLE account ALTER COLUMN id SET DEFAULT uuid_v7();
           ALTER TABLE role ALTER COLUMN id SET DEFAULT uuid_v7();
+          ALTER TABLE capability ALTER COLUMN id SET DEFAULT uuid_v7();
+          ALTER TABLE policy ALTER COLUMN id SET DEFAULT uuid_v7();
           ALTER TABLE privilege ALTER COLUMN id SET DEFAULT uuid_v7();
           ALTER TABLE account_role_assignment ALTER COLUMN id SET DEFAULT uuid_v7();
           ALTER TABLE role_privilege_assignment ALTER COLUMN id SET DEFAULT uuid_v7();
@@ -81,6 +83,8 @@ databaseChangeLog:
 
           SELECT tgf_attach_uuid_v7_trigger('account');
           SELECT tgf_attach_uuid_v7_trigger('role');
+          SELECT tgf_attach_uuid_v7_trigger('capability');
+          SELECT tgf_attach_uuid_v7_trigger('policy');
           SELECT tgf_attach_uuid_v7_trigger('privilege');
           SELECT tgf_attach_uuid_v7_trigger('account_role_assignment');
           SELECT tgf_attach_uuid_v7_trigger('role_privilege_assignment');
@@ -132,6 +136,8 @@ databaseChangeLog:
         sql: |
           SELECT tgf_attach_uuid_v7_guard_trigger('account');
           SELECT tgf_attach_uuid_v7_guard_trigger('role');
+          SELECT tgf_attach_uuid_v7_guard_trigger('capability');
+          SELECT tgf_attach_uuid_v7_guard_trigger('policy');
           SELECT tgf_attach_uuid_v7_guard_trigger('privilege');
           SELECT tgf_attach_uuid_v7_guard_trigger('account_role_assignment');
           SELECT tgf_attach_uuid_v7_guard_trigger('role_privilege_assignment');

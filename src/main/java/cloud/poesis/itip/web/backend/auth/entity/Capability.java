@@ -2,19 +2,17 @@ package cloud.poesis.itip.web.backend.auth.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.ForeignKey;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Version;
 import java.time.Instant;
 import java.util.HashSet;
-import java.util.Set;
 import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -28,34 +26,51 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
-@Table(name = "privilege")
+@Table(
+    name = "capability",
+    uniqueConstraints =
+        @UniqueConstraint(
+            name = "uq_capability_identity",
+            columnNames = {"resource_origin", "resource", "operation"}))
 @Getter
 @Setter
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
-public class Privilege {
+public class Capability {
 
   @Id
   @EqualsAndHashCode.Include
   @Column(name = "id", nullable = false, updatable = false)
   private UUID id;
 
-  @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(
-      name = "capability_id",
-      nullable = false,
-      foreignKey = @ForeignKey(name = "fk_privilege_capability"))
-  private Capability capability;
+  @Enumerated(EnumType.STRING)
+  @Column(name = "resource_origin", nullable = false)
+  private PrivilegeResourceOrigin resourceOrigin;
+
+  @Column(name = "resource", nullable = false)
+  private String resource;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "operation", nullable = false)
+  private PrivilegeAction operation;
+
+  @Default
+  @Column(name = "enabled", nullable = false)
+  private boolean enabled = true;
+
+  @Default
+  @Column(name = "system_managed", nullable = false)
+  private boolean systemManaged = false;
 
   @Default
   @ManyToMany
   @JoinTable(
-      name = "privilege_policy",
-      joinColumns = @JoinColumn(name = "privilege_id"),
+      name = "capability_policy",
+      joinColumns = @JoinColumn(name = "capability_id"),
       inverseJoinColumns = @JoinColumn(name = "policy_id"))
-  private Set<Policy> policies = new HashSet<>();
+  private java.util.Set<Policy> policies = new HashSet<>();
 
   @Version
   @Column(name = "version", nullable = false)
@@ -74,8 +89,4 @@ public class Privilege {
   @UpdateTimestamp
   @Column(name = "updated_at", nullable = false)
   private Instant updatedAt;
-
-  @Default
-  @OneToMany(mappedBy = "privilege", fetch = FetchType.LAZY)
-  private Set<RolePrivilegeAssignment> rolePrivilegeAssignments = new HashSet<>();
 }

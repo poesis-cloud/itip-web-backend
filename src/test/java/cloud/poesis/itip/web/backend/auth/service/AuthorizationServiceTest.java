@@ -4,14 +4,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
 import cloud.poesis.itip.web.backend.auth.entity.Account;
+import cloud.poesis.itip.web.backend.auth.entity.Capability;
+import cloud.poesis.itip.web.backend.auth.entity.Policy;
 import cloud.poesis.itip.web.backend.auth.entity.Privilege;
 import cloud.poesis.itip.web.backend.auth.entity.PrivilegeAction;
-import cloud.poesis.itip.web.backend.auth.entity.PrivilegeEffect;
 import cloud.poesis.itip.web.backend.auth.entity.PrivilegeResourceOrigin;
 import cloud.poesis.itip.web.backend.auth.model.AuthorizationCheck;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -51,9 +54,8 @@ class AuthorizationServiceTest {
   }
 
   @Test
-  void allowsAnUnconditionalAllow() {
-    when(accountService.activePrivileges(account))
-        .thenReturn(List.of(privilege(PrivilegeEffect.ALLOW, null)));
+  void allowsMatchingEnabledCapabilityWithoutPolicies() {
+    when(accountService.activePrivileges(account)).thenReturn(List.of(privilege(capability(true))));
 
     var decision =
         authorizationService.checkMany(account.getEmail(), List.of(check(null))).getFirst();
@@ -62,10 +64,9 @@ class AuthorizationServiceTest {
   }
 
   @Test
-  void denyOverridesAnAllow() {
-    when(accountService.activePrivileges(account))
-        .thenReturn(
-            List.of(privilege(PrivilegeEffect.ALLOW, null), privilege(PrivilegeEffect.DENY, null)));
+  void deniesWhenAccountIsDisabled() {
+    account.setEnabled(false);
+    when(accountService.activePrivileges(account)).thenReturn(List.of(privilege(capability(true))));
 
     var decision =
         authorizationService.checkMany(account.getEmail(), List.of(check(null))).getFirst();
@@ -74,9 +75,9 @@ class AuthorizationServiceTest {
   }
 
   @Test
-  void conditionWithoutTargetFailsClosed() {
+  void deniesWhenMatchingCapabilityIsDisabled() {
     when(accountService.activePrivileges(account))
-        .thenReturn(List.of(privilege(PrivilegeEffect.ALLOW, "true")));
+        .thenReturn(List.of(privilege(capability(false))));
 
     var decision =
         authorizationService.checkMany(account.getEmail(), List.of(check(null))).getFirst();
@@ -85,13 +86,23 @@ class AuthorizationServiceTest {
   }
 
   @Test
-  void unresolvedTargetFailsClosed() {
+  void deniesWhenAnyCapabilityPolicyDoesNotApply() {
     UUID resourceId = UUID.randomUUID();
     when(accountService.activePrivileges(account))
-        .thenReturn(List.of(privilege(PrivilegeEffect.ALLOW, "target.ownerId == actor.id")));
+        .thenReturn(
+            List.of(
+                privilege(
+                    capability(true, policy("actor.id == target.ownerId"), policy("false")))));
     when(resourceResolver.supports(PrivilegeResourceOrigin.ITIP, "PRIVILEGE")).thenReturn(true);
     when(resourceResolver.resolve(PrivilegeResourceOrigin.ITIP, "PRIVILEGE", resourceId))
-        .thenReturn(Optional.empty());
+        .thenReturn(Optional.of(Map.of("ownerId", account.getId().toString())));
+    when(conditionExpressionEvaluator.evaluate(
+            org.mockito.ArgumentMatchers.eq("actor.id == target.ownerId"),
+            org.mockito.ArgumentMatchers.any()))
+        .thenReturn(true);
+    when(conditionExpressionEvaluator.evaluate(
+            org.mockito.ArgumentMatchers.eq("false"), org.mockito.ArgumentMatchers.any()))
+        .thenReturn(false);
 
     var decision =
         authorizationService.checkMany(account.getEmail(), List.of(check(resourceId))).getFirst();
@@ -100,16 +111,23 @@ class AuthorizationServiceTest {
   }
 
   @Test
-  void evaluatesCelConditionAgainstResolvedTarget() {
+  void allowsWhenOneOfMultiplePrivilegesApplies() {
     UUID resourceId = UUID.randomUUID();
     when(accountService.activePrivileges(account))
-        .thenReturn(List.of(privilege(PrivilegeEffect.ALLOW, "target.ownerId == actor.id")));
+        .thenReturn(
+            List.of(
+                privilege(capability(true), policy("false")),
+                privilege(capability(true), policy("actor.id == target.ownerId"))));
     when(resourceResolver.supports(PrivilegeResourceOrigin.ITIP, "PRIVILEGE")).thenReturn(true);
     when(resourceResolver.resolve(PrivilegeResourceOrigin.ITIP, "PRIVILEGE", resourceId))
         .thenReturn(Optional.of(Map.of("ownerId", account.getId().toString())));
-    authorizationService =
-        new AuthorizationService(
-            accountService, List.of(resourceResolver), new CelConditionExpressionEvaluator());
+    when(conditionExpressionEvaluator.evaluate(
+            org.mockito.ArgumentMatchers.eq("false"), org.mockito.ArgumentMatchers.any()))
+        .thenReturn(false);
+    when(conditionExpressionEvaluator.evaluate(
+            org.mockito.ArgumentMatchers.eq("actor.id == target.ownerId"),
+            org.mockito.ArgumentMatchers.any()))
+        .thenReturn(true);
 
     var decision =
         authorizationService.checkMany(account.getEmail(), List.of(check(resourceId))).getFirst();
@@ -122,14 +140,30 @@ class AuthorizationServiceTest {
         PrivilegeResourceOrigin.ITIP, "PRIVILEGE", PrivilegeAction.CREATE, resourceId);
   }
 
-  private Privilege privilege(PrivilegeEffect effect, String condition) {
+  private static Privilege privilege(Capability capability) {
+    return Privilege.builder().id(UUID.randomUUID()).capability(capability).build();
+  }
+
+  private static Privilege privilege(Capability capability, Policy... policies) {
     return Privilege.builder()
         .id(UUID.randomUUID())
-        .effect(effect)
+        .capability(capability)
+        .policies(Set.of(policies))
+        .build();
+  }
+
+  private static Capability capability(boolean enabled, Policy... policies) {
+    return Capability.builder()
+        .id(UUID.randomUUID())
         .resourceOrigin(PrivilegeResourceOrigin.ITIP)
         .resource("PRIVILEGE")
-        .action(PrivilegeAction.CREATE)
-        .conditionExpression(condition)
+        .operation(PrivilegeAction.CREATE)
+        .enabled(enabled)
+        .policies(new LinkedHashSet<>(List.of(policies)))
         .build();
+  }
+
+  private static Policy policy(String conditionExpression) {
+    return Policy.builder().id(UUID.randomUUID()).conditionExpression(conditionExpression).build();
   }
 }

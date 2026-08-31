@@ -5,13 +5,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import cloud.poesis.itip.web.backend.auth.entity.Account;
 import cloud.poesis.itip.web.backend.auth.entity.AccountRoleAssignment;
+import cloud.poesis.itip.web.backend.auth.entity.Capability;
 import cloud.poesis.itip.web.backend.auth.entity.Privilege;
 import cloud.poesis.itip.web.backend.auth.entity.PrivilegeAction;
-import cloud.poesis.itip.web.backend.auth.entity.PrivilegeEffect;
 import cloud.poesis.itip.web.backend.auth.entity.PrivilegeResourceOrigin;
 import cloud.poesis.itip.web.backend.auth.entity.Role;
 import cloud.poesis.itip.web.backend.auth.entity.RolePrivilegeAssignment;
+import cloud.poesis.itip.web.backend.auth.service.AccountRoleAssignmentService;
 import cloud.poesis.itip.web.backend.auth.service.AccountService;
+import cloud.poesis.itip.web.backend.auth.service.RoleService;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
@@ -31,7 +33,7 @@ import org.springframework.security.core.userdetails.UserDetails;
       "spring.liquibase.enabled=false",
       "spring.jpa.properties.hibernate.format_sql=true"
     })
-@Import(AccountService.class)
+@Import({AccountService.class, AccountRoleAssignmentService.class, RoleService.class})
 class AccountRepositoryIntegrityTest {
 
   @Autowired private TestEntityManager entityManager;
@@ -188,13 +190,21 @@ class AccountRepositoryIntegrityTest {
   }
 
   private Privilege persistPrivilege() {
+    Capability capability =
+        entityManager.persistFlushFind(
+            Capability.builder()
+                .id(UUID.randomUUID())
+                .resourceOrigin(PrivilegeResourceOrigin.ITIP)
+                .resource("PRIVILEGE")
+                .operation(PrivilegeAction.READ)
+                .enabled(true)
+                .createdBy("test")
+                .updatedBy("test")
+                .build());
     Privilege privilege =
         Privilege.builder()
             .id(UUID.randomUUID())
-            .effect(PrivilegeEffect.ALLOW)
-            .resourceOrigin(PrivilegeResourceOrigin.ITIP)
-            .resource("PRIVILEGE")
-            .action(PrivilegeAction.READ)
+            .capability(capability)
             .createdBy("test")
             .updatedBy("test")
             .build();

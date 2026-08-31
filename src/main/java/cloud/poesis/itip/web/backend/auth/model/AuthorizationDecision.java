@@ -7,6 +7,6 @@ import java.util.UUID;
 public record AuthorizationDecision(
     PrivilegeResourceOrigin origin,
     String resource,
-    PrivilegeAction action,
+    PrivilegeAction operation,
     UUID resourceId,
     boolean allowed) {}

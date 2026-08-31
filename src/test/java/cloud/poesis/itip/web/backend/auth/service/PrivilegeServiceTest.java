@@ -4,19 +4,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import cloud.poesis.itip.web.backend.auth.entity.Capability;
+import cloud.poesis.itip.web.backend.auth.entity.Policy;
 import cloud.poesis.itip.web.backend.auth.entity.Privilege;
-import cloud.poesis.itip.web.backend.auth.entity.PrivilegeAction;
 import cloud.poesis.itip.web.backend.auth.entity.PrivilegeAuditActionType;
-import cloud.poesis.itip.web.backend.auth.entity.PrivilegeEffect;
-import cloud.poesis.itip.web.backend.auth.entity.PrivilegeResourceOrigin;
 import cloud.poesis.itip.web.backend.auth.repository.PrivilegeRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,7 +29,9 @@ class PrivilegeServiceTest {
 
   @Mock private PrivilegeChangeAuditService privilegeChangeAuditService;
 
-  @Mock private ConditionExpressionEvaluator conditionExpressionEvaluator;
+  @Mock private CapabilityService capabilityService;
+
+  @Mock private PolicyService policyService;
 
   private PrivilegeService privilegeService;
 
@@ -41,95 +42,45 @@ class PrivilegeServiceTest {
             privilegeRepository,
             privilegeChangeAuditService,
             new ObjectMapper(),
-            conditionExpressionEvaluator);
-    lenient().when(conditionExpressionEvaluator.isValid(any())).thenReturn(true);
+            capabilityService,
+            policyService);
   }
 
   @Test
   @SuppressWarnings("null")
-  void createShouldPersistExplicitPrivilegeAndAuditItsState() {
-    CreatePrivilegeCommand command = validCommand("target.ownerId != actor.id");
+  void createShouldPersistPrivilegeWithCapabilityPoliciesAndAuditItsState() {
+    UUID capabilityId = UUID.randomUUID();
+    UUID policyId = UUID.randomUUID();
+    Capability capability = Capability.builder().id(capabilityId).build();
+    Policy policy = Policy.builder().id(policyId).build();
+    CreatePrivilegeCommand command = new CreatePrivilegeCommand(capabilityId, Set.of(policyId));
+    when(capabilityService.require(capabilityId)).thenReturn(capability);
+    when(policyService.requireAll(command.policyIds())).thenReturn(Set.of(policy));
     when(privilegeRepository.save(any(Privilege.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
 
     Privilege result = privilegeService.create(command, "alice");
 
-    assertThat(result.getEffect()).isEqualTo(PrivilegeEffect.ALLOW);
-    assertThat(result.getResourceOrigin()).isEqualTo(PrivilegeResourceOrigin.DEFMAN);
-    assertThat(result.getResource()).isEqualTo("ASCRIPTION");
-    assertThat(result.getAction()).isEqualTo(PrivilegeAction.APPROVE);
-    assertThat(result.getConditionExpression()).isEqualTo("target.ownerId != actor.id");
+    assertThat(result.getCapability()).isSameAs(capability);
+    assertThat(result.getPolicies()).containsExactly(policy);
     assertThat(result.getCreatedBy()).isEqualTo("alice");
     assertThat(result.getUpdatedBy()).isEqualTo("alice");
+
+    verify(capabilityService).require(capabilityId);
+    verify(policyService).requireAll(command.policyIds());
 
     verify(privilegeChangeAuditService)
         .recordChange(
             eq(result),
             eq(PrivilegeAuditActionType.CREATE),
             eq("null"),
-            org.mockito.ArgumentMatchers.contains("\"resource\":\"ASCRIPTION\""),
+            org.mockito.ArgumentMatchers.contains(capabilityId.toString()),
             eq("alice"));
   }
 
   @Test
-  @SuppressWarnings("null")
-  void createShouldNormalizeBlankConditionToNull() {
-    when(privilegeRepository.save(any(Privilege.class)))
-        .thenAnswer(invocation -> invocation.getArgument(0));
-
-    Privilege result = privilegeService.create(validCommand("  "), "alice");
-
-    assertThat(result.getConditionExpression()).isNull();
-  }
-
-  @Test
-  void createShouldRejectInvalidCelCondition() {
-    when(conditionExpressionEvaluator.isValid("target.ownerId ==")).thenReturn(false);
-
-    assertThatThrownBy(() -> privilegeService.create(validCommand("target.ownerId =="), "alice"))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("valid CEL boolean expression");
-
-    verifyNoInteractions(privilegeRepository, privilegeChangeAuditService);
-  }
-
-  @Test
-  void createShouldRejectResourceCarryingOriginPrefix() {
-    CreatePrivilegeCommand command =
-        new CreatePrivilegeCommand(
-            PrivilegeEffect.ALLOW,
-            PrivilegeResourceOrigin.DEFMAN,
-            "defman:ASCRIPTION",
-            PrivilegeAction.APPROVE,
-            null);
-
-    assertThatThrownBy(() -> privilegeService.create(command, "alice"))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("must not carry an origin prefix");
-
-    verifyNoInteractions(privilegeRepository, privilegeChangeAuditService);
-  }
-
-  @Test
-  void createShouldRejectBlankResource() {
-    CreatePrivilegeCommand command =
-        new CreatePrivilegeCommand(
-            PrivilegeEffect.ALLOW,
-            PrivilegeResourceOrigin.DEFMAN,
-            "  ",
-            PrivilegeAction.APPROVE,
-            null);
-
-    assertThatThrownBy(() -> privilegeService.create(command, "alice"))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessage("resource is required");
-
-    verify(privilegeRepository, never()).save(any());
-  }
-
-  @Test
   void createShouldRejectBlankActor() {
-    assertThatThrownBy(() -> privilegeService.create(validCommand(null), " "))
+    assertThatThrownBy(() -> privilegeService.create(validCommand(), " "))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessage("actor is required");
 
@@ -137,22 +88,26 @@ class PrivilegeServiceTest {
   }
 
   @Test
-  void createShouldRejectMissingEffect() {
-    CreatePrivilegeCommand command =
-        new CreatePrivilegeCommand(
-            null, PrivilegeResourceOrigin.DEFMAN, "ASCRIPTION", PrivilegeAction.APPROVE, null);
+  void createShouldRejectNullCommand() {
+    assertThatThrownBy(() -> privilegeService.create(null, "alice"))
+        .isInstanceOf(NullPointerException.class)
+        .hasMessage("command is required");
+
+    verifyNoInteractions(privilegeRepository, privilegeChangeAuditService);
+  }
+
+  @Test
+  void createShouldRejectMissingCapabilityId() {
+    CreatePrivilegeCommand command = new CreatePrivilegeCommand(null, Set.of());
 
     assertThatThrownBy(() -> privilegeService.create(command, "alice"))
         .isInstanceOf(NullPointerException.class)
-        .hasMessage("effect is required");
+        .hasMessage("capabilityId is required");
+
+    verifyNoInteractions(privilegeRepository, privilegeChangeAuditService);
   }
 
-  private static CreatePrivilegeCommand validCommand(String conditionExpression) {
-    return new CreatePrivilegeCommand(
-        PrivilegeEffect.ALLOW,
-        PrivilegeResourceOrigin.DEFMAN,
-        "ASCRIPTION",
-        PrivilegeAction.APPROVE,
-        conditionExpression);
+  private static CreatePrivilegeCommand validCommand() {
+    return new CreatePrivilegeCommand(UUID.randomUUID(), Set.of());
   }
 }

@@ -2,8 +2,8 @@ package cloud.poesis.itip.web.backend.auth.service;
 
 import cloud.poesis.itip.web.backend.auth.entity.Account;
 import cloud.poesis.itip.web.backend.auth.entity.AccountRoleAssignment;
+import cloud.poesis.itip.web.backend.auth.entity.Capability;
 import cloud.poesis.itip.web.backend.auth.entity.Privilege;
-import cloud.poesis.itip.web.backend.auth.entity.PrivilegeEffect;
 import cloud.poesis.itip.web.backend.auth.repository.AccountRepository;
 import java.time.Instant;
 import java.util.HashSet;
@@ -19,12 +19,23 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
 public class AccountService implements UserDetailsService {
 
   private final AccountRepository accountRepository;
+  private final RoleService roleService;
+  private final AccountRoleAssignmentService accountRoleAssignmentService;
+
+  @Transactional
+  @SuppressWarnings("null")
+  public Account create(Account account) {
+    Account saved = accountRepository.save(account);
+    accountRoleAssignmentService.assign(saved, roleService.requireDefaultRole());
+    return saved;
+  }
 
   @Override
   public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
@@ -48,7 +59,6 @@ public class AccountService implements UserDetailsService {
             .filter(rolePrivilegeAssignment -> rolePrivilegeAssignment.getUnassignedAt() == null)
             .map(rolePrivilegeAssignment -> rolePrivilegeAssignment.getPrivilege())
             .filter(Objects::nonNull)
-            .filter(privilege -> privilege.getEffect() == PrivilegeEffect.ALLOW)
             .map(AccountService::authorityOf)
             .filter(Objects::nonNull)
             .map(SimpleGrantedAuthority::new)
@@ -94,17 +104,19 @@ public class AccountService implements UserDetailsService {
     return source == null ? Set.of() : new HashSet<>(source);
   }
 
-  // DENY privileges are excluded here; deny-overrides is resolved by the authorization guard.
   private static String authorityOf(Privilege privilege) {
-    if (privilege.getResourceOrigin() == null
-        || privilege.getResource() == null
-        || privilege.getAction() == null) {
+    Capability capability = privilege.getCapability();
+    if (capability == null
+        || !capability.isEnabled()
+        || capability.getResourceOrigin() == null
+        || capability.getResource() == null
+        || capability.getOperation() == null) {
       return null;
     }
-    return privilege.getResourceOrigin()
+    return capability.getResourceOrigin()
         + ":"
-        + privilege.getResource()
+        + capability.getResource()
         + ":"
-        + privilege.getAction();
+        + capability.getOperation();
   }
 }

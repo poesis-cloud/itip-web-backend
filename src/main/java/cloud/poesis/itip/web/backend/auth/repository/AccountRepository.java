@@ -19,6 +19,9 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
       LEFT JOIN FETCH ara.role r
       LEFT JOIN FETCH r.rolePrivilegeAssignments rpa
       LEFT JOIN FETCH rpa.privilege p
+      LEFT JOIN FETCH p.capability c
+      LEFT JOIN FETCH c.policies
+      LEFT JOIN FETCH p.policies
       WHERE a.email = :email
         AND (
           ara IS NULL
