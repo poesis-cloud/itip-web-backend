@@ -79,9 +79,12 @@ databaseChangeLog:
           BEGIN
               SELECT COUNT(*) INTO invalid_codes
               FROM privilege
-              WHERE cardinality(string_to_array(code, ':')) <> 3;
+              WHERE cardinality(string_to_array(code, ':')) <> 3
+                 OR split_part(code, ':', 1) NOT IN ('DEFMAN', 'ITIP', 'UI')
+                 OR split_part(code, ':', 2) = ''
+                 OR split_part(code, ':', 3) NOT IN ('CREATE', 'READ', 'UPDATE', 'SUBMIT', 'APPROVE', 'ACTIVATE', 'DISABLE', 'VIEW');
               IF invalid_codes > 0 THEN
-                  RAISE EXCEPTION 'Capability migration failed: % privilege codes are not ORIGIN:RESOURCE:OPERATION triples', invalid_codes;
+                  RAISE EXCEPTION 'Capability migration failed: % privilege codes are not supported ORIGIN:RESOURCE:OPERATION triples', invalid_codes;
               END IF;
           END
           $$;

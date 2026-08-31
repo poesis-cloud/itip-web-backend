@@ -1,5 +1,6 @@
 package cloud.poesis.itip.web.backend.auth.api;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -11,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import cloud.poesis.itip.web.backend.auth.entity.PrivilegeAction;
 import cloud.poesis.itip.web.backend.auth.entity.PrivilegeResourceOrigin;
 import cloud.poesis.itip.web.backend.auth.model.AuthorizationCheck;
+import cloud.poesis.itip.web.backend.auth.model.AuthorizationCheckManyRequest;
 import cloud.poesis.itip.web.backend.auth.model.AuthorizationDecision;
 import cloud.poesis.itip.web.backend.auth.service.AuthorizationService;
 import java.util.List;
@@ -22,6 +24,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
@@ -84,6 +87,22 @@ class AuthorizationControllerTest {
                 .contentType("application/json")
                 .content("{\"checks\":[]}"))
         .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(authorizationService);
+  }
+
+  @Test
+  void checkManyShouldRejectAnonymousAuthentication() {
+    AuthorizationCheckManyRequest request =
+        new AuthorizationCheckManyRequest(
+            List.of(
+                new AuthorizationCheck(
+                    PrivilegeResourceOrigin.ITIP, "asset", PrivilegeAction.READ, null)));
+    AnonymousAuthenticationToken authentication =
+        new AnonymousAuthenticationToken("key", "anonymousUser", List.of(() -> "ROLE_ANONYMOUS"));
+
+    assertThat(authorizationController.checkMany(authentication, request).getStatusCode().value())
+        .isEqualTo(401);
 
     verifyNoInteractions(authorizationService);
   }

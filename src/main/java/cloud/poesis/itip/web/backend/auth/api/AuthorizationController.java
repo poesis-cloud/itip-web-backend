@@ -4,9 +4,9 @@ import cloud.poesis.itip.web.backend.auth.model.AuthorizationCheckManyRequest;
 import cloud.poesis.itip.web.backend.auth.model.AuthorizationCheckManyResponse;
 import cloud.poesis.itip.web.backend.auth.service.AuthorizationService;
 import jakarta.validation.Valid;
-import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -23,7 +23,11 @@ public class AuthorizationController {
   @PostMapping("/check-many")
   public ResponseEntity<AuthorizationCheckManyResponse> checkMany(
       Authentication authentication, @Valid @RequestBody AuthorizationCheckManyRequest request) {
-    Objects.requireNonNull(authentication, "authentication is required");
+    if (authentication == null
+        || !authentication.isAuthenticated()
+        || authentication instanceof AnonymousAuthenticationToken) {
+      return ResponseEntity.status(401).build();
+    }
     return ResponseEntity.ok(
         new AuthorizationCheckManyResponse(
             authorizationService.checkMany(authentication.getName(), request.checks())));

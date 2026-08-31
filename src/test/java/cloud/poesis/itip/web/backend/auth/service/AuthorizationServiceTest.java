@@ -1,6 +1,7 @@
 package cloud.poesis.itip.web.backend.auth.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import cloud.poesis.itip.web.backend.auth.entity.Account;
@@ -133,6 +134,20 @@ class AuthorizationServiceTest {
         authorizationService.checkMany(account.getEmail(), List.of(check(resourceId))).getFirst();
 
     assertThat(decision.allowed()).isTrue();
+  }
+
+  @Test
+  void resolvesTargetOnceForMultipleMatchingPrivileges() {
+    UUID resourceId = UUID.randomUUID();
+    when(accountService.activePrivileges(account))
+        .thenReturn(List.of(privilege(capability(true)), privilege(capability(true))));
+    when(resourceResolver.supports(PrivilegeResourceOrigin.ITIP, "PRIVILEGE")).thenReturn(true);
+    when(resourceResolver.resolve(PrivilegeResourceOrigin.ITIP, "PRIVILEGE", resourceId))
+        .thenReturn(Optional.of(Map.of()));
+
+    authorizationService.checkMany(account.getEmail(), List.of(check(resourceId)));
+
+    verify(resourceResolver).resolve(PrivilegeResourceOrigin.ITIP, "PRIVILEGE", resourceId);
   }
 
   private AuthorizationCheck check(UUID resourceId) {

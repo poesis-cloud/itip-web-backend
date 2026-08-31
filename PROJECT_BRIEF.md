@@ -119,15 +119,14 @@ ITIP operationalises GSM-governed IT governance for enterprises. The backend:
 **What does not work yet:**
 
 - No caching configuration.
-- No integration with `sie-definition-manager` or `sie-definition-blackboard-manager`.
-- No Liquibase migration yet for the extended privilege and audit model.
-- No resource resolvers or privilege administration endpoints.
+- No integration with `sie-definition-blackboard-manager`.
+- No ITIP resource resolvers or privilege administration endpoints.
 
 **What's next:**
 
-- Generate and curate the privilege migration through Liquibase against PostgreSQL.
-- Implement fail-closed capability/policy evaluation and Defman/ITIP resource resolvers.
 - Expose secured privilege administration endpoints before frontend integration.
+- Add ITIP resource resolvers as protected resource types are introduced.
+- Integrate `sie-definition-blackboard-manager` for collaborative definition sourcing.
 
 ## 9. Security Rules
 

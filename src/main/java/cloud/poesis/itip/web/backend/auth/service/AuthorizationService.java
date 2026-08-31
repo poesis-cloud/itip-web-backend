@@ -30,13 +30,17 @@ public class AuthorizationService {
 
   private AuthorizationDecision decide(
       Account account, List<Privilege> privileges, AuthorizationCheck check) {
+    Objects.requireNonNull(check, "check is required");
+    Optional<Map<String, Object>> target =
+        check.resourceId() != null ? resolve(check) : Optional.empty();
     boolean allowed =
         hasValidShape(check)
             && account.isEnabled()
+            && (check.resourceId() == null || target.isPresent())
             && privileges.stream()
                 .filter(matches(check))
                 .filter(privilege -> privilege.getCapability().isEnabled())
-                .anyMatch(privilege -> applies(privilege, account, check));
+                .anyMatch(privilege -> applies(privilege, account, target));
     return new AuthorizationDecision(
         check.origin(), check.resource(), check.operation(), check.resourceId(), allowed);
   }
@@ -48,13 +52,8 @@ public class AuthorizationService {
             && privilege.getCapability().getOperation() == check.operation();
   }
 
-  private boolean applies(Privilege privilege, Account account, AuthorizationCheck check) {
-    Optional<Map<String, Object>> target =
-        check.resourceId() == null ? Optional.empty() : resolve(check);
-    if (check.resourceId() != null && target.isEmpty()) {
-      return false;
-    }
-
+  private boolean applies(
+      Privilege privilege, Account account, Optional<Map<String, Object>> target) {
     return applies(privilege.getCapability().getPolicies(), account, target)
         && applies(privilege.getPolicies(), account, target);
   }
@@ -84,8 +83,7 @@ public class AuthorizationService {
   }
 
   private static boolean hasValidShape(AuthorizationCheck check) {
-    return check != null
-        && check.origin() != null
+    return check.origin() != null
         && check.resource() != null
         && !check.resource().isBlank()
         && check.operation() != null;
