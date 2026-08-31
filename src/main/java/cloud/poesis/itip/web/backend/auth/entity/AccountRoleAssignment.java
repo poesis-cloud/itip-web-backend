@@ -7,6 +7,7 @@ import jakarta.persistence.ForeignKey;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
@@ -63,4 +64,11 @@ public class AccountRoleAssignment {
 
   @Column(name = "revoked_at", nullable = true)
   private Instant unassignedAt;
+
+  @PrePersist
+  void assignUuidV7IfMissing() {
+    if (id == null) {
+      id = UuidV7Generator.generate();
+    }
+  }
 }

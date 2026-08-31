@@ -1,6 +1,9 @@
 package cloud.poesis.itip.web.backend.auth.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -152,6 +155,28 @@ class JwtAuthenticationFilterTest {
     jwtAuthenticationFilter.doFilter(request, response, chain);
 
     assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+  }
+
+  @Test
+  void shouldNotAuthenticateDisabledUserDespiteValidToken() throws Exception {
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    request.addHeader("Authorization", "Bearer valid-token");
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    MockFilterChain chain = new MockFilterChain();
+    UserDetails userDetails =
+        User.withUsername("disabled@itip.local")
+            .password("ignored")
+            .authorities("READ_USER")
+            .disabled(true)
+            .build();
+
+    when(accessTokenService.extractEmail("valid-token")).thenReturn("disabled@itip.local");
+    when(accountService.loadUserByUsername("disabled@itip.local")).thenReturn(userDetails);
+
+    jwtAuthenticationFilter.doFilter(request, response, chain);
+
+    assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+    verify(accessTokenService, never()).isTokenValid(eq("valid-token"), eq(userDetails));
   }
 
   @Test

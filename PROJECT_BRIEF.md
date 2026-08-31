@@ -112,7 +112,8 @@ ITIP operationalises GSM-governed IT governance for enterprises. The backend:
 - CI (`ci.yaml`) and CD (`cd.yaml`) workflows in place.
 - `Makefile` with `dev-up` / `dev-down` / `dev-check` / `prod-deploy` targets.
 - JWT authentication and persisted account, role, privilege, and assignment foundations.
-- Extensible privilege model (`ALLOW` / `DENY`, resource domain + type key, action, condition).
+- Capability, policy, and privilege model: capabilities identify protected resource operations;
+  policies constrain applicability; privileges bind capabilities and policies to roles.
 - Transactional privilege creation service with append-only change-audit recording.
 
 **What does not work yet:**
@@ -120,12 +121,12 @@ ITIP operationalises GSM-governed IT governance for enterprises. The backend:
 - No caching configuration.
 - No integration with `sie-definition-manager` or `sie-definition-blackboard-manager`.
 - No Liquibase migration yet for the extended privilege and audit model.
-- No deny-overrides decision engine, resource resolvers, or privilege administration endpoints.
+- No resource resolvers or privilege administration endpoints.
 
 **What's next:**
 
 - Generate and curate the privilege migration through Liquibase against PostgreSQL.
-- Implement fail-closed deny-overrides evaluation and Defman/ITIP resource resolvers.
+- Implement fail-closed capability/policy evaluation and Defman/ITIP resource resolvers.
 - Expose secured privilege administration endpoints before frontend integration.
 
 ## 9. Security Rules
