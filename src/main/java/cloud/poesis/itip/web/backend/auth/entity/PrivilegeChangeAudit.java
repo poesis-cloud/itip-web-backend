@@ -9,7 +9,6 @@ import jakarta.persistence.ForeignKey;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
@@ -32,6 +31,7 @@ import org.hibernate.annotations.CreationTimestamp;
 public class PrivilegeChangeAudit {
 
   @Id
+  @GenerateUuidV7
   @EqualsAndHashCode.Include
   @Column(name = "id", nullable = false, updatable = false)
   private UUID id;
@@ -62,11 +62,4 @@ public class PrivilegeChangeAudit {
   @CreationTimestamp
   @Column(name = "action_at", nullable = false, updatable = false)
   private Instant actionAt;
-
-  @PrePersist
-  void assignUuidV7IfMissing() {
-    if (id == null) {
-      id = UuidV7Generator.generate();
-    }
-  }
 }

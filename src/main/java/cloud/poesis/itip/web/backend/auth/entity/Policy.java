@@ -3,7 +3,6 @@ package cloud.poesis.itip.web.backend.auth.entity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.time.Instant;
@@ -29,6 +28,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 public class Policy {
 
   @Id
+  @GenerateUuidV7
   @EqualsAndHashCode.Include
   @Column(name = "id", nullable = false, updatable = false)
   private UUID id;
@@ -53,11 +53,4 @@ public class Policy {
   @UpdateTimestamp
   @Column(name = "updated_at", nullable = false)
   private Instant updatedAt;
-
-  @PrePersist
-  void assignUuidV7IfMissing() {
-    if (id == null) {
-      id = UuidV7Generator.generate();
-    }
-  }
 }

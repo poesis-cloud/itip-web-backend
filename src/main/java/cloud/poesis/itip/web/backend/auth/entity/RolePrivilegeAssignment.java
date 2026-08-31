@@ -7,7 +7,6 @@ import jakarta.persistence.ForeignKey;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
@@ -30,6 +29,7 @@ import org.hibernate.annotations.CreationTimestamp;
 public class RolePrivilegeAssignment {
 
   @Id
+  @GenerateUuidV7
   @EqualsAndHashCode.Include
   @Column(name = "id", nullable = false, updatable = false)
   private UUID id;
@@ -61,11 +61,4 @@ public class RolePrivilegeAssignment {
 
   @Column(name = "revoked_at", nullable = true)
   private Instant unassignedAt;
-
-  @PrePersist
-  void assignUuidV7IfMissing() {
-    if (id == null) {
-      id = UuidV7Generator.generate();
-    }
-  }
 }

@@ -10,7 +10,6 @@ import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
-import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.time.Instant;
@@ -39,6 +38,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 public class Privilege {
 
   @Id
+  @GenerateUuidV7
   @EqualsAndHashCode.Include
   @Column(name = "id", nullable = false, updatable = false)
   private UUID id;
@@ -79,11 +79,4 @@ public class Privilege {
   @Default
   @OneToMany(mappedBy = "privilege", fetch = FetchType.LAZY)
   private Set<RolePrivilegeAssignment> rolePrivilegeAssignments = new HashSet<>();
-
-  @PrePersist
-  void assignUuidV7IfMissing() {
-    if (id == null) {
-      id = UuidV7Generator.generate();
-    }
-  }
 }

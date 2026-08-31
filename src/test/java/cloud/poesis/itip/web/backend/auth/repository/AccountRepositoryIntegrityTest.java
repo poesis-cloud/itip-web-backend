@@ -16,7 +16,6 @@ import cloud.poesis.itip.web.backend.auth.service.AccountService;
 import cloud.poesis.itip.web.backend.auth.service.RoleService;
 import java.time.Instant;
 import java.util.Objects;
-import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -78,18 +77,10 @@ class AccountRepositoryIntegrityTest {
 
     rolePrivilegeAssignmentRepository.saveAndFlush(
         Objects.requireNonNull(
-            RolePrivilegeAssignment.builder()
-                .id(UUID.randomUUID())
-                .role(role)
-                .privilege(privilege)
-                .build()));
+            RolePrivilegeAssignment.builder().role(role).privilege(privilege).build()));
 
     RolePrivilegeAssignment duplicate =
-        RolePrivilegeAssignment.builder()
-            .id(UUID.randomUUID())
-            .role(role)
-            .privilege(privilege)
-            .build();
+        RolePrivilegeAssignment.builder().role(role).privilege(privilege).build();
 
     assertThatThrownBy(
             () -> rolePrivilegeAssignmentRepository.saveAndFlush(Objects.requireNonNull(duplicate)))
@@ -104,14 +95,13 @@ class AccountRepositoryIntegrityTest {
     accountRoleAssignmentRepository.saveAndFlush(
         Objects.requireNonNull(
             AccountRoleAssignment.builder()
-                .id(UUID.randomUUID())
                 .account(account)
                 .role(role)
                 .expiresAt(Instant.now().minusSeconds(60))
                 .build()));
 
     AccountRoleAssignment regrant =
-        AccountRoleAssignment.builder().id(UUID.randomUUID()).account(account).role(role).build();
+        AccountRoleAssignment.builder().account(account).role(role).build();
 
     accountRoleAssignmentRepository.saveAndFlush(Objects.requireNonNull(regrant));
 
@@ -139,17 +129,12 @@ class AccountRepositoryIntegrityTest {
     Privilege privilege = persistPrivilege();
 
     RolePrivilegeAssignment rolePrivilegeAssignment =
-        RolePrivilegeAssignment.builder()
-            .id(UUID.randomUUID())
-            .role(role)
-            .privilege(privilege)
-            .build();
+        RolePrivilegeAssignment.builder().role(role).privilege(privilege).build();
     rolePrivilegeAssignmentRepository.saveAndFlush(Objects.requireNonNull(rolePrivilegeAssignment));
 
     accountRoleAssignmentRepository.saveAndFlush(
         Objects.requireNonNull(
             AccountRoleAssignment.builder()
-                .id(UUID.randomUUID())
                 .account(account)
                 .role(role)
                 .unassignedAt(Instant.now())
@@ -175,7 +160,6 @@ class AccountRepositoryIntegrityTest {
   private Account persistAccount(String email) {
     Account account =
         Account.builder()
-            .id(UUID.randomUUID())
             .email(email)
             .passwordHash("hashed-password")
             .fullName("Test User")
@@ -185,7 +169,7 @@ class AccountRepositoryIntegrityTest {
   }
 
   private Role persistRole(String name) {
-    Role role = Role.builder().id(UUID.randomUUID()).name(name).build();
+    Role role = Role.builder().name(name).build();
     return entityManager.persistFlushFind(role);
   }
 
@@ -193,7 +177,6 @@ class AccountRepositoryIntegrityTest {
     Capability capability =
         entityManager.persistFlushFind(
             Capability.builder()
-                .id(UUID.randomUUID())
                 .resourceOrigin(PrivilegeResourceOrigin.ITIP)
                 .resource("PRIVILEGE")
                 .operation(PrivilegeAction.READ)
@@ -202,12 +185,7 @@ class AccountRepositoryIntegrityTest {
                 .updatedBy("test")
                 .build());
     Privilege privilege =
-        Privilege.builder()
-            .id(UUID.randomUUID())
-            .capability(capability)
-            .createdBy("test")
-            .updatedBy("test")
-            .build();
+        Privilege.builder().capability(capability).createdBy("test").updatedBy("test").build();
     return entityManager.persistFlushFind(privilege);
   }
 }
