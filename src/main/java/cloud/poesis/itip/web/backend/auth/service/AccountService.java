@@ -4,6 +4,8 @@ import cloud.poesis.itip.web.backend.auth.entity.Account;
 import cloud.poesis.itip.web.backend.auth.entity.AccountRoleAssignment;
 import cloud.poesis.itip.web.backend.auth.entity.Capability;
 import cloud.poesis.itip.web.backend.auth.entity.Privilege;
+import cloud.poesis.itip.web.backend.auth.entity.Role;
+import cloud.poesis.itip.web.backend.auth.model.AccountProfile;
 import cloud.poesis.itip.web.backend.auth.repository.AccountRepository;
 import java.time.Instant;
 import java.util.HashSet;
@@ -96,6 +98,39 @@ public class AccountService implements UserDetailsService {
         .flatMap(role -> snapshot(role.getRolePrivilegeAssignments()).stream())
         .filter(rolePrivilegeAssignment -> rolePrivilegeAssignment.getUnassignedAt() == null)
         .map(rolePrivilegeAssignment -> rolePrivilegeAssignment.getPrivilege())
+        .filter(Objects::nonNull)
+        .toList();
+  }
+
+  public AccountProfile describeAccount(String email) {
+    Account account = loadAccountWithRolesAndPrivileges(email);
+    List<String> roles =
+        activeRoles(account).stream()
+            .map(role -> role.getName())
+            .filter(Objects::nonNull)
+            .distinct()
+            .sorted()
+            .toList();
+    List<String> privileges =
+        activePrivileges(account).stream()
+            .map(AccountService::authorityOf)
+            .filter(Objects::nonNull)
+            .distinct()
+            .sorted()
+            .toList();
+    return new AccountProfile(
+        account.getId(), account.getEmail(), account.getFullName(), roles, privileges);
+  }
+
+  private static List<Role> activeRoles(Account account) {
+    Instant now = Instant.now();
+    return snapshot(account.getAccountRoleAssignments()).stream()
+        .filter(
+            assignment ->
+                assignment.getUnassignedAt() == null
+                    && (assignment.getExpiresAt() == null
+                        || assignment.getExpiresAt().isAfter(now)))
+        .map(assignment -> assignment.getRole())
         .filter(Objects::nonNull)
         .toList();
   }

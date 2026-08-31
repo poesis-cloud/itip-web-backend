@@ -390,6 +390,60 @@ class AccountServiceTest {
         .containsExactlyInAnyOrder("ITIP:ACCOUNT:READ");
   }
 
+  @Test
+  void describeAccountShouldIncludeOnlyActiveRolesAndEnabledCapabilityPrivileges() {
+    Privilege activePrivilege = allowPrivilege("ACCOUNT", PrivilegeAction.READ);
+    Privilege disabledCapabilityPrivilege = allowPrivilege("ACCOUNT", PrivilegeAction.DISABLE);
+    disabledCapabilityPrivilege.getCapability().setEnabled(false);
+
+    Role activeRole =
+        Role.builder()
+            .id(UUID.randomUUID())
+            .name("ADMIN")
+            .rolePrivilegeAssignments(
+                Set.of(
+                    RolePrivilegeAssignment.builder()
+                        .id(UUID.randomUUID())
+                        .privilege(activePrivilege)
+                        .build(),
+                    RolePrivilegeAssignment.builder()
+                        .id(UUID.randomUUID())
+                        .privilege(disabledCapabilityPrivilege)
+                        .build()))
+            .build();
+    Role revokedRole = Role.builder().id(UUID.randomUUID()).name("REVOKED").build();
+    Role expiredRole = Role.builder().id(UUID.randomUUID()).name("EXPIRED").build();
+    Account account =
+        Account.builder()
+            .id(UUID.randomUUID())
+            .email("profile@itip.local")
+            .fullName("Profile Account")
+            .accountRoleAssignments(
+                Set.of(
+                    AccountRoleAssignment.builder().id(UUID.randomUUID()).role(activeRole).build(),
+                    AccountRoleAssignment.builder()
+                        .id(UUID.randomUUID())
+                        .role(revokedRole)
+                        .unassignedAt(Instant.now())
+                        .build(),
+                    AccountRoleAssignment.builder()
+                        .id(UUID.randomUUID())
+                        .role(expiredRole)
+                        .expiresAt(Instant.now().minusSeconds(1))
+                        .build()))
+            .build();
+    when(accountRepository.findByEmailWithRolesAndPrivileges("profile@itip.local"))
+        .thenReturn(java.util.Optional.of(account));
+
+    var profile = accountService.describeAccount("profile@itip.local");
+
+    assertThat(profile.id()).isEqualTo(account.getId());
+    assertThat(profile.email()).isEqualTo("profile@itip.local");
+    assertThat(profile.fullName()).isEqualTo("Profile Account");
+    assertThat(profile.roles()).containsExactly("ADMIN");
+    assertThat(profile.privileges()).containsExactly("ITIP:ACCOUNT:READ");
+  }
+
   private static Privilege allowPrivilege(String resource, PrivilegeAction operation) {
     Capability capability =
         Capability.builder()
