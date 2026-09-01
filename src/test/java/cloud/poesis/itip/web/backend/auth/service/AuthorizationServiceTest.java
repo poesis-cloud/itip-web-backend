@@ -2,6 +2,7 @@ package cloud.poesis.itip.web.backend.auth.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -13,6 +14,7 @@ import cloud.poesis.itip.web.backend.auth.entity.Privilege;
 import cloud.poesis.itip.web.backend.auth.entity.PrivilegeAction;
 import cloud.poesis.itip.web.backend.auth.entity.PrivilegeResourceOrigin;
 import cloud.poesis.itip.web.backend.auth.model.AuthorizationCheck;
+import cloud.poesis.itip.web.backend.auth.model.AuthorizationDecision;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -171,6 +173,44 @@ class AuthorizationServiceTest {
 
     verify(resourceResolver).resolve(PrivilegeResourceOrigin.ITIP, "PRIVILEGE", resourceId);
     verify(resourceResolver, never()).resolve(PrivilegeResourceOrigin.ITIP, "OTHER", resourceId);
+  }
+
+  @Test
+  void resolvesDuplicateTargetsOncePerBatch() {
+    UUID resourceId = UUID.randomUUID();
+    AuthorizationCheck check = check(resourceId);
+    when(accountService.activePrivileges(account))
+        .thenReturn(List.of(privilege(capability(true), policy("true"))));
+    when(resourceResolver.supports(PrivilegeResourceOrigin.ITIP, "PRIVILEGE")).thenReturn(true);
+    when(resourceResolver.resolve(PrivilegeResourceOrigin.ITIP, "PRIVILEGE", resourceId))
+        .thenReturn(Optional.of(Map.of()));
+    when(conditionExpressionEvaluator.evaluate(
+            org.mockito.ArgumentMatchers.eq("true"), org.mockito.ArgumentMatchers.any()))
+        .thenReturn(true);
+
+    var decisions = authorizationService.checkMany(account.getEmail(), List.of(check, check));
+
+    assertThat(decisions).allMatch(AuthorizationDecision::allowed);
+    verify(resourceResolver, times(1))
+        .resolve(PrivilegeResourceOrigin.ITIP, "PRIVILEGE", resourceId);
+  }
+
+  @Test
+  void cachesResolutionFailuresWithinOneBatch() {
+    UUID resourceId = UUID.randomUUID();
+    AuthorizationCheck check = check(resourceId);
+    when(accountService.activePrivileges(account))
+        .thenReturn(List.of(privilege(capability(true), policy("true"))));
+    when(resourceResolver.supports(PrivilegeResourceOrigin.ITIP, "PRIVILEGE")).thenReturn(true);
+    when(resourceResolver.resolve(PrivilegeResourceOrigin.ITIP, "PRIVILEGE", resourceId))
+        .thenThrow(new IllegalStateException("Defman unavailable"));
+
+    var decisions = authorizationService.checkMany(account.getEmail(), List.of(check, check));
+
+    assertThat(decisions).allMatch(decision -> !decision.allowed());
+    verify(resourceResolver, times(1))
+        .resolve(PrivilegeResourceOrigin.ITIP, "PRIVILEGE", resourceId);
+    verifyNoInteractions(conditionExpressionEvaluator);
   }
 
   private AuthorizationCheck check(UUID resourceId) {

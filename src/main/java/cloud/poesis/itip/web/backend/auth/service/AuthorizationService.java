@@ -3,8 +3,10 @@ package cloud.poesis.itip.web.backend.auth.service;
 import cloud.poesis.itip.web.backend.auth.entity.Account;
 import cloud.poesis.itip.web.backend.auth.entity.Policy;
 import cloud.poesis.itip.web.backend.auth.entity.Privilege;
+import cloud.poesis.itip.web.backend.auth.entity.PrivilegeResourceOrigin;
 import cloud.poesis.itip.web.backend.auth.model.AuthorizationCheck;
 import cloud.poesis.itip.web.backend.auth.model.AuthorizationDecision;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -25,11 +27,17 @@ public class AuthorizationService {
   public List<AuthorizationDecision> checkMany(String email, List<AuthorizationCheck> checks) {
     Account account = accountService.loadAccountWithRolesAndPrivileges(email);
     List<Privilege> privileges = accountService.activePrivileges(account);
-    return checks.stream().map(check -> decide(account, privileges, check)).toList();
+    Map<ResourceKey, Optional<Map<String, Object>>> resolutionCache = new HashMap<>();
+    return checks.stream()
+        .map(check -> decide(account, privileges, check, resolutionCache))
+        .toList();
   }
 
   private AuthorizationDecision decide(
-      Account account, List<Privilege> privileges, AuthorizationCheck check) {
+      Account account,
+      List<Privilege> privileges,
+      AuthorizationCheck check,
+      Map<ResourceKey, Optional<Map<String, Object>>> resolutionCache) {
     Objects.requireNonNull(check, "check is required");
     if (!hasValidShape(check) || !account.isEnabled()) {
       return denied(check);
@@ -45,7 +53,7 @@ public class AuthorizationService {
     }
 
     Optional<Map<String, Object>> target =
-        check.resourceId() != null ? resolve(check) : Optional.empty();
+        check.resourceId() != null ? resolveCached(check, resolutionCache) : Optional.empty();
     boolean allowed =
         (check.resourceId() == null || target.isPresent())
             && candidates.stream().anyMatch(privilege -> applies(privilege, account, target));
@@ -91,11 +99,21 @@ public class AuthorizationService {
   }
 
   private Optional<Map<String, Object>> resolve(AuthorizationCheck check) {
-    return resourceResolvers.stream()
-        .filter(resolver -> resolver.supports(check.origin(), check.resource()))
-        .findFirst()
-        .flatMap(
-            resolver -> resolver.resolve(check.origin(), check.resource(), check.resourceId()));
+    try {
+      return resourceResolvers.stream()
+          .filter(resolver -> resolver.supports(check.origin(), check.resource()))
+          .findFirst()
+          .flatMap(
+              resolver -> resolver.resolve(check.origin(), check.resource(), check.resourceId()));
+    } catch (RuntimeException exception) {
+      return Optional.empty();
+    }
+  }
+
+  private Optional<Map<String, Object>> resolveCached(
+      AuthorizationCheck check, Map<ResourceKey, Optional<Map<String, Object>>> resolutionCache) {
+    ResourceKey key = new ResourceKey(check.origin(), check.resource(), check.resourceId());
+    return resolutionCache.computeIfAbsent(key, ignored -> resolve(check));
   }
 
   private static boolean hasValidShape(AuthorizationCheck check) {
@@ -104,4 +122,7 @@ public class AuthorizationService {
         && !check.resource().isBlank()
         && check.operation() != null;
   }
+
+  private record ResourceKey(
+      PrivilegeResourceOrigin origin, String resource, java.util.UUID resourceId) {}
 }

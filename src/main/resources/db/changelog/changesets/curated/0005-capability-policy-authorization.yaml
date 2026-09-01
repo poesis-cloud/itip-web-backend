@@ -75,16 +75,20 @@ databaseChangeLog:
         sql: |
           DO $$
           DECLARE
-              invalid_codes integer;
+              invalid_codes text;
           BEGIN
-              SELECT COUNT(*) INTO invalid_codes
-              FROM privilege
-              WHERE cardinality(string_to_array(code, ':')) <> 3
-                 OR split_part(code, ':', 1) NOT IN ('DEFMAN', 'ITIP', 'UI')
-                 OR split_part(code, ':', 2) = ''
-                 OR split_part(code, ':', 3) NOT IN ('CREATE', 'READ', 'UPDATE', 'SUBMIT', 'APPROVE', 'ACTIVATE', 'DISABLE', 'VIEW');
-              IF invalid_codes > 0 THEN
-                  RAISE EXCEPTION 'Capability migration failed: % privilege codes are not supported ORIGIN:RESOURCE:OPERATION triples', invalid_codes;
+              SELECT string_agg(code, ', ' ORDER BY code) INTO invalid_codes
+              FROM (
+                  SELECT code
+                  FROM privilege
+                  WHERE cardinality(string_to_array(code, ':')) <> 3
+                     OR split_part(code, ':', 1) NOT IN ('DEFMAN', 'ITIP', 'UI')
+                     OR split_part(code, ':', 2) = ''
+                     OR split_part(code, ':', 3) NOT IN ('CREATE', 'READ', 'UPDATE', 'SUBMIT', 'APPROVE', 'ACTIVATE', 'DISABLE', 'VIEW')
+                  ORDER BY code
+              ) invalid;
+              IF invalid_codes IS NOT NULL THEN
+                  RAISE EXCEPTION 'Capability migration failed: unmapped legacy privilege codes: %. Add an explicit business-approved mapping before migration.', invalid_codes;
               END IF;
           END
           $$;
