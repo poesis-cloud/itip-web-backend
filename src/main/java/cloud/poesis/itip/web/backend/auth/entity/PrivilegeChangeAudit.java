@@ -12,21 +12,22 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Immutable;
 
 @Entity
 @Table(name = "privilege_change_audit")
 @Getter
-@Setter
+@Immutable
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Builder
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 public class PrivilegeChangeAudit {
 
@@ -40,23 +41,24 @@ public class PrivilegeChangeAudit {
   @JoinColumn(
       name = "privilege_id",
       nullable = false,
+      updatable = false,
       foreignKey = @ForeignKey(name = "fk_privilege_change_audit_privilege"))
   private Privilege privilege;
 
-  @Column(name = "privilege_version", nullable = false)
+  @Column(name = "privilege_version", nullable = false, updatable = false)
   private long privilegeVersion;
 
   @Enumerated(EnumType.STRING)
-  @Column(name = "action_type", nullable = false)
+  @Column(name = "action_type", nullable = false, updatable = false)
   private PrivilegeAuditActionType actionType;
 
-  @Column(name = "previous_state", nullable = false, columnDefinition = "TEXT")
+  @Column(name = "previous_state", nullable = false, updatable = false, columnDefinition = "TEXT")
   private String previousState;
 
-  @Column(name = "new_state", nullable = false, columnDefinition = "TEXT")
+  @Column(name = "new_state", nullable = false, updatable = false, columnDefinition = "TEXT")
   private String newState;
 
-  @Column(name = "action_by", nullable = false)
+  @Column(name = "action_by", nullable = false, updatable = false)
   private String actionBy;
 
   @CreationTimestamp
