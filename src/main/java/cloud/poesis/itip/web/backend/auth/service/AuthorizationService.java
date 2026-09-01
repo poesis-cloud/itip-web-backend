@@ -31,16 +31,32 @@ public class AuthorizationService {
   private AuthorizationDecision decide(
       Account account, List<Privilege> privileges, AuthorizationCheck check) {
     Objects.requireNonNull(check, "check is required");
+    if (!hasValidShape(check) || !account.isEnabled()) {
+      return denied(check);
+    }
+
+    List<Privilege> candidates =
+        privileges.stream()
+            .filter(matches(check))
+            .filter(privilege -> privilege.getCapability().isEnabled())
+            .toList();
+    if (candidates.isEmpty()) {
+      return denied(check);
+    }
+
     Optional<Map<String, Object>> target =
         check.resourceId() != null ? resolve(check) : Optional.empty();
     boolean allowed =
-        hasValidShape(check)
-            && account.isEnabled()
-            && (check.resourceId() == null || target.isPresent())
-            && privileges.stream()
-                .filter(matches(check))
-                .filter(privilege -> privilege.getCapability().isEnabled())
-                .anyMatch(privilege -> applies(privilege, account, target));
+        (check.resourceId() == null || target.isPresent())
+            && candidates.stream().anyMatch(privilege -> applies(privilege, account, target));
+    return decision(check, allowed);
+  }
+
+  private static AuthorizationDecision denied(AuthorizationCheck check) {
+    return decision(check, false);
+  }
+
+  private static AuthorizationDecision decision(AuthorizationCheck check, boolean allowed) {
     return new AuthorizationDecision(
         check.origin(), check.resource(), check.operation(), check.resourceId(), allowed);
   }

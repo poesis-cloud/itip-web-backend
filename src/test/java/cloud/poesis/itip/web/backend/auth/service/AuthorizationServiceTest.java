@@ -1,7 +1,9 @@
 package cloud.poesis.itip.web.backend.auth.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import cloud.poesis.itip.web.backend.auth.entity.Account;
@@ -55,6 +57,19 @@ class AuthorizationServiceTest {
   }
 
   @Test
+  void doesNotResolveTargetWhenNoEnabledPrivilegeMatches() {
+    when(accountService.activePrivileges(account)).thenReturn(List.of());
+
+    var decision =
+        authorizationService
+            .checkMany(account.getEmail(), List.of(check(UUID.randomUUID())))
+            .getFirst();
+
+    assertThat(decision.allowed()).isFalse();
+    verifyNoInteractions(resourceResolver);
+  }
+
+  @Test
   void allowsMatchingEnabledCapabilityWithoutPolicies() {
     when(accountService.activePrivileges(account)).thenReturn(List.of(privilege(capability(true))));
 
@@ -67,12 +82,16 @@ class AuthorizationServiceTest {
   @Test
   void deniesWhenAccountIsDisabled() {
     account.setEnabled(false);
-    when(accountService.activePrivileges(account)).thenReturn(List.of(privilege(capability(true))));
+    when(accountService.activePrivileges(account))
+        .thenReturn(List.of(privilege(capability(true), policy("true"))));
 
     var decision =
-        authorizationService.checkMany(account.getEmail(), List.of(check(null))).getFirst();
+        authorizationService
+            .checkMany(account.getEmail(), List.of(check(UUID.randomUUID())))
+            .getFirst();
 
     assertThat(decision.allowed()).isFalse();
+    verifyNoInteractions(resourceResolver);
   }
 
   @Test
@@ -140,7 +159,10 @@ class AuthorizationServiceTest {
   void resolvesTargetOnceForMultipleMatchingPrivileges() {
     UUID resourceId = UUID.randomUUID();
     when(accountService.activePrivileges(account))
-        .thenReturn(List.of(privilege(capability(true)), privilege(capability(true))));
+        .thenReturn(
+            List.of(
+                privilege(capability(true), policy("true")),
+                privilege(capability(true), policy("true"))));
     when(resourceResolver.supports(PrivilegeResourceOrigin.ITIP, "PRIVILEGE")).thenReturn(true);
     when(resourceResolver.resolve(PrivilegeResourceOrigin.ITIP, "PRIVILEGE", resourceId))
         .thenReturn(Optional.of(Map.of()));
@@ -148,6 +170,7 @@ class AuthorizationServiceTest {
     authorizationService.checkMany(account.getEmail(), List.of(check(resourceId)));
 
     verify(resourceResolver).resolve(PrivilegeResourceOrigin.ITIP, "PRIVILEGE", resourceId);
+    verify(resourceResolver, never()).resolve(PrivilegeResourceOrigin.ITIP, "OTHER", resourceId);
   }
 
   private AuthorizationCheck check(UUID resourceId) {
