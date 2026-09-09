@@ -8,10 +8,13 @@ databaseChangeLog:
     - sql:
         splitStatements: false
         sql: |
+          -- Seeded dev accounts are created disabled with an unusable placeholder hash.
+          -- No working credentials are committed; an operator must set a local password
+          -- and enable the account explicitly (see README.md "Dev accounts").
           INSERT INTO account (email, password_hash, full_name, enabled, created_at, updated_at)
           VALUES
-            ('admin@itip.local', '$2y$10$6fTX6qIj92/jcUL3x3gTku7UEQTojglTjYP5.PHrzINx0A28Lq6Yq', 'ITIP Admin', true, now(), now()),
-            ('reviewer@itip.local', '$2y$10$cPPWfgsLvqM6tpsZWqIZ0.TgFGwaJt/aLfxJNTjBMdIIG5ZsAfvtC', 'ITIP Reviewer', true, now(), now())
+            ('admin@itip.local', '!disabled', 'ITIP Admin', false, now(), now()),
+            ('reviewer@itip.local', '!disabled', 'ITIP Reviewer', false, now(), now())
           ON CONFLICT (email) DO NOTHING;
 
           INSERT INTO role (name, system_managed, created_at, updated_at)

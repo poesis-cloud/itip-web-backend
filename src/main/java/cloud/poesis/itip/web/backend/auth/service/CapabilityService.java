@@ -44,7 +44,7 @@ public class CapabilityService {
     capability.setStatus(newStatus);
     capability.setUpdatedBy(actor);
 
-    Capability saved = capabilityRepository.save(capability);
+    Capability saved = capabilityRepository.saveAndFlush(capability);
     capabilityChangeAuditService.recordChange(
         saved, actionTypeFor(newStatus), previousState, serializeState(saved), actor);
     return saved;

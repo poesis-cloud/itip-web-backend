@@ -25,6 +25,8 @@ spring:
 itip:
   defman:
     base-url: ${ITIP_DEFMAN_BASE_URL:}
+    connect-timeout-ms: ${ITIP_DEFMAN_CONNECT_TIMEOUT_MS:5000}
+    read-timeout-ms: ${ITIP_DEFMAN_READ_TIMEOUT_MS:10000}
   security:
     permit-all: ${ITIP_SECURITY_PERMIT_ALL:false}
     jwt:

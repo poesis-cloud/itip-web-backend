@@ -47,4 +47,13 @@ class CelConditionExpressionEvaluatorTest {
     assertThat(evaluator.evaluate("target.ownerId", Map.of("target", Map.of("ownerId", "x"))))
         .isFalse();
   }
+
+  @Test
+  void rejectsNullAndBlankExpressionsConsistentlyWithEvaluate() {
+    assertThat(evaluator.isValid(null)).isFalse();
+    assertThat(evaluator.isValid("")).isFalse();
+    assertThat(evaluator.isValid("   ")).isFalse();
+    assertThat(evaluator.evaluate(null, Map.of())).isFalse();
+    assertThat(evaluator.evaluate("", Map.of())).isFalse();
+  }
 }

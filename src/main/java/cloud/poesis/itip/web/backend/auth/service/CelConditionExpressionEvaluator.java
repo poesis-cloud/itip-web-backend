@@ -46,7 +46,7 @@ public class CelConditionExpressionEvaluator implements ConditionExpressionEvalu
 
   public boolean isValid(String expression) {
     if (expression == null || expression.isBlank()) {
-      return true;
+      return false;
     }
     try {
       CelValidationResult validation = compiler.compile(expression);

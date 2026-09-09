@@ -43,13 +43,20 @@ taken by the SIE database.
 
 ### Dev accounts
 
-The dev environment starts with two seeded accounts holding different
-role capability grants. They exist in dev only.
+The dev environment seeds two accounts (`admin@itip.local`, `reviewer@itip.local`)
+holding different role capability grants, but they are created **disabled** with an
+unusable password hash — no working credentials are committed. To use them locally,
+set your own password and enable the account against the port-forwarded dev database:
 
-| Account | Password |
-| --- | --- |
-| `admin@itip.local` | `AdminPass123!` |
-| `reviewer@itip.local` | `ReviewPass123!` |
+```bash
+NEW_PASSWORD='choose-a-local-password'
+HASH=$(htpasswd -bnBC 10 "" "$NEW_PASSWORD" | tr -d ':\n')
+PGPASSWORD=dev-password psql -h localhost -p 5433 -U itip_local -d itip_web_backend \
+  -c "UPDATE account SET password_hash = '$HASH', enabled = true WHERE email = 'admin@itip.local';"
+```
+
+Repeat for `reviewer@itip.local` as needed. This keeps working credentials out of
+source control while still exercising the seeded role/capability grants.
 
 ## Ops
 

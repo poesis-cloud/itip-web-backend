@@ -1,6 +1,14 @@
 # Migrates the capability lifecycle from the `enabled` boolean to the `status` enum
-# (ACTIVE / DISABLED / DEPRECATED — only ACTIVE authorizes), removes the abandoned
-# `system_managed` markers, and introduces the append-only capability_change_audit ledger.
+# (ACTIVE / DISABLED / DEPRECATED — only ACTIVE authorizes), and introduces the
+# append-only capability_change_audit ledger.
+#
+# `system_managed` is dropped from both `capability` and `role`: no application code
+# reads it (grep confirms zero references), and no administration endpoint yet exists
+# to mutate/delete capabilities or roles, so the "protect managed resources" guarantee
+# it was meant to provide has no enforcement point today. `status` is the sole
+# lifecycle control going forward; when capability/role administration endpoints are
+# introduced, protecting system-managed rows must be re-added at that point (e.g. an
+# `isSystemManaged()` guard in the service layer) before mutation/deletion is exposed.
 databaseChangeLog:
 - changeSet:
     id: 0008-1-capability-status-column

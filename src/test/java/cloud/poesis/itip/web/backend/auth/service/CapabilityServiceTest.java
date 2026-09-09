@@ -79,14 +79,14 @@ class CapabilityServiceTest {
   void changeStatusShouldPersistTransitionAndRecordAudit() {
     Capability capability = activeCapability();
     when(capabilityRepository.findById(capability.getId())).thenReturn(Optional.of(capability));
-    when(capabilityRepository.save(capability)).thenReturn(capability);
+    when(capabilityRepository.saveAndFlush(capability)).thenReturn(capability);
 
     Capability result =
         capabilityService.changeStatus(capability.getId(), CapabilityStatus.DISABLED, "alice");
 
     assertThat(result.getStatus()).isEqualTo(CapabilityStatus.DISABLED);
     assertThat(result.getUpdatedBy()).isEqualTo("alice");
-    verify(capabilityRepository).save(capability);
+    verify(capabilityRepository).saveAndFlush(capability);
     verify(capabilityChangeAuditService)
         .recordChange(
             eq(capability),
@@ -102,7 +102,7 @@ class CapabilityServiceTest {
     Capability capability = activeCapability();
     capability.setStatus(CapabilityStatus.DISABLED);
     when(capabilityRepository.findById(capability.getId())).thenReturn(Optional.of(capability));
-    when(capabilityRepository.save(capability)).thenReturn(capability);
+    when(capabilityRepository.saveAndFlush(capability)).thenReturn(capability);
 
     capabilityService.changeStatus(capability.getId(), CapabilityStatus.ACTIVE, "alice");
     capabilityService.changeStatus(capability.getId(), CapabilityStatus.DEPRECATED, "alice");
@@ -125,7 +125,7 @@ class CapabilityServiceTest {
         capabilityService.changeStatus(capability.getId(), CapabilityStatus.ACTIVE, "alice");
 
     assertThat(result).isSameAs(capability);
-    verify(capabilityRepository, never()).save(any());
+    verify(capabilityRepository, never()).saveAndFlush(any());
     verify(capabilityChangeAuditService, never()).recordChange(any(), any(), any(), any(), any());
   }
 
