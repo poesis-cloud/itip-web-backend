@@ -301,10 +301,90 @@ class AuthorizationServiceTest {
               return Optional.of(Map.of());
             });
 
+    Instant start = Instant.now();
     var decision =
         authorizationService.checkMany(account.getEmail(), List.of(check(resourceId))).getFirst();
+    Duration elapsed = Duration.between(start, Instant.now());
 
     assertThat(decision.allowed()).isFalse();
+    // The batch call itself must return around the 100ms deadline, not wait out the full 2s
+    // resolver delay; this is the observable proof that checkMany() does not block the caller
+    // past the configured deadline (the separate concern of whether the abandoned downstream
+    // call is actually interrupted is covered by resolverThreadIsInterruptedWhenDeadlineElapses).
+    assertThat(elapsed).isLessThan(Duration.ofSeconds(1));
+  }
+
+  @Test
+  void resolverThreadIsInterruptedWhenDeadlineElapses() throws InterruptedException {
+    // Regression pin: cancel(true) on a submitted Future must actually interrupt the running
+    // virtual thread so an abandoned downstream call is aborted instead of running to
+    // completion after the batch deadline has already returned a denial to the caller.
+    authorizationService =
+        new AuthorizationService(
+            accountService, List.of(resourceResolver), conditionExpressionEvaluator, 100);
+    UUID resourceId = UUID.randomUUID();
+    java.util.concurrent.CountDownLatch interrupted = new java.util.concurrent.CountDownLatch(1);
+    when(accountService.activeRoleCapabilityGrants(account))
+        .thenReturn(List.of(grant(capability(CapabilityStatus.ACTIVE), policy("true"))));
+    when(resourceResolver.supports(CapabilityResourceOrigin.ITIP, "CAPABILITY")).thenReturn(true);
+    when(resourceResolver.resolve(CapabilityResourceOrigin.ITIP, "CAPABILITY", resourceId))
+        .thenAnswer(
+            invocation -> {
+              try {
+                Thread.sleep(5000);
+              } catch (InterruptedException e) {
+                interrupted.countDown();
+                Thread.currentThread().interrupt();
+              }
+              return Optional.of(Map.of());
+            });
+
+    authorizationService.checkMany(account.getEmail(), List.of(check(resourceId)));
+
+    assertThat(interrupted.await(2, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+  }
+
+  @Test
+  void propagatesCallerRequestAttributesToResolverThread() {
+    // Regression pin: RestDefmanClient reads the Authorization header from
+    // RequestContextHolder, whose ThreadLocal is not inherited by the virtual threads the
+    // resolution executor spawns. checkMany() must install the caller's request attributes on
+    // those threads so downstream calls still carry the bearer token.
+    org.springframework.mock.web.MockHttpServletRequest servletRequest =
+        new org.springframework.mock.web.MockHttpServletRequest();
+    servletRequest.addHeader("Authorization", "Bearer test-token");
+    org.springframework.web.context.request.RequestAttributes callerAttributes =
+        new org.springframework.web.context.request.ServletRequestAttributes(servletRequest);
+    org.springframework.web.context.request.RequestContextHolder.setRequestAttributes(
+        callerAttributes);
+    try {
+      UUID resourceId = UUID.randomUUID();
+      java.util.concurrent.atomic.AtomicReference<String> observedAuthorizationHeader =
+          new java.util.concurrent.atomic.AtomicReference<>();
+      when(accountService.activeRoleCapabilityGrants(account))
+          .thenReturn(List.of(grant(capability(CapabilityStatus.ACTIVE), policy("true"))));
+      when(resourceResolver.supports(CapabilityResourceOrigin.ITIP, "CAPABILITY")).thenReturn(true);
+      when(resourceResolver.resolve(CapabilityResourceOrigin.ITIP, "CAPABILITY", resourceId))
+          .thenAnswer(
+              invocation -> {
+                var attributes =
+                    org.springframework.web.context.request.RequestContextHolder
+                        .getRequestAttributes();
+                if (attributes
+                    instanceof
+                    org.springframework.web.context.request.ServletRequestAttributes servletAttrs) {
+                  observedAuthorizationHeader.set(
+                      servletAttrs.getRequest().getHeader("Authorization"));
+                }
+                return Optional.of(Map.of());
+              });
+
+      authorizationService.checkMany(account.getEmail(), List.of(check(resourceId)));
+
+      assertThat(observedAuthorizationHeader.get()).isEqualTo("Bearer test-token");
+    } finally {
+      org.springframework.web.context.request.RequestContextHolder.resetRequestAttributes();
+    }
   }
 
   private AuthorizationCheck check(UUID resourceId) {

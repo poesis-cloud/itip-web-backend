@@ -48,6 +48,8 @@ spec:
               value: {{ .Values.env.ITIP_DEFMAN_CONNECT_TIMEOUT_MS | default 5000 | quote }}
             - name: ITIP_DEFMAN_READ_TIMEOUT_MS
               value: {{ .Values.env.ITIP_DEFMAN_READ_TIMEOUT_MS | default 10000 | quote }}
+            - name: ITIP_AUTHORIZATION_BATCH_TIMEOUT_MS
+              value: {{ .Values.env.ITIP_AUTHORIZATION_BATCH_TIMEOUT_MS | default 8000 | quote }}
             - name: ITIP_SECURITY_JWT_EXPIRATION_MS
               value: {{ .Values.env.ITIP_SECURITY_JWT_EXPIRATION_MS | quote }}
             - name: ITIP_SECURITY_JWT_SECRET
