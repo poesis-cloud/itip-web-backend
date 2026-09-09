@@ -16,6 +16,8 @@ import cloud.poesis.itip.web.backend.auth.entity.Policy;
 import cloud.poesis.itip.web.backend.auth.entity.RoleCapabilityGrant;
 import cloud.poesis.itip.web.backend.auth.model.AuthorizationCheck;
 import cloud.poesis.itip.web.backend.auth.model.AuthorizationDecision;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -44,7 +46,7 @@ class AuthorizationServiceTest {
   void setUp() {
     authorizationService =
         new AuthorizationService(
-            accountService, List.of(resourceResolver), conditionExpressionEvaluator);
+            accountService, List.of(resourceResolver), conditionExpressionEvaluator, 8000);
     account = Account.builder().id(UUID.randomUUID()).email("alice@itip.local").build();
     when(accountService.loadAccountWithRolesAndCapabilities(account.getEmail()))
         .thenReturn(account);
@@ -249,6 +251,60 @@ class AuthorizationServiceTest {
     verify(resourceResolver, times(1))
         .resolve(CapabilityResourceOrigin.ITIP, "CAPABILITY", resourceId);
     verifyNoInteractions(conditionExpressionEvaluator);
+  }
+
+  @Test
+  void resolvesMultipleDistinctTargetsConcurrentlyWithinBoundedLatency() {
+    // Regression pin for thread 25 follow-up: N distinct slow resolutions must not add up
+    // sequentially. Each simulated resolver call blocks ~200ms; with 20 distinct resources
+    // resolved concurrently the whole batch must still complete well under 20 * 200ms.
+    int distinctResourceCount = 20;
+    List<AuthorizationCheck> checks = new java.util.ArrayList<>();
+    when(accountService.activeRoleCapabilityGrants(account))
+        .thenReturn(List.of(grant(capability(CapabilityStatus.ACTIVE), policy("true"))));
+    when(resourceResolver.supports(CapabilityResourceOrigin.ITIP, "CAPABILITY")).thenReturn(true);
+    when(conditionExpressionEvaluator.evaluate(
+            org.mockito.ArgumentMatchers.eq("true"), org.mockito.ArgumentMatchers.any()))
+        .thenReturn(true);
+    for (int i = 0; i < distinctResourceCount; i++) {
+      UUID resourceId = UUID.randomUUID();
+      checks.add(check(resourceId));
+      when(resourceResolver.resolve(CapabilityResourceOrigin.ITIP, "CAPABILITY", resourceId))
+          .thenAnswer(
+              invocation -> {
+                Thread.sleep(200);
+                return Optional.of(Map.of());
+              });
+    }
+
+    Instant start = Instant.now();
+    var decisions = authorizationService.checkMany(account.getEmail(), checks);
+    Duration elapsed = Duration.between(start, Instant.now());
+
+    assertThat(decisions).hasSize(distinctResourceCount).allMatch(AuthorizationDecision::allowed);
+    assertThat(elapsed).isLessThan(Duration.ofMillis(200L * distinctResourceCount / 2));
+  }
+
+  @Test
+  void deniesResolutionsThatDoNotCompleteWithinTheBatchDeadline() {
+    authorizationService =
+        new AuthorizationService(
+            accountService, List.of(resourceResolver), conditionExpressionEvaluator, 100);
+    UUID resourceId = UUID.randomUUID();
+    when(accountService.activeRoleCapabilityGrants(account))
+        .thenReturn(List.of(grant(capability(CapabilityStatus.ACTIVE), policy("true"))));
+    when(resourceResolver.supports(CapabilityResourceOrigin.ITIP, "CAPABILITY")).thenReturn(true);
+    when(resourceResolver.resolve(CapabilityResourceOrigin.ITIP, "CAPABILITY", resourceId))
+        .thenAnswer(
+            invocation -> {
+              Thread.sleep(2000);
+              return Optional.of(Map.of());
+            });
+
+    var decision =
+        authorizationService.checkMany(account.getEmail(), List.of(check(resourceId))).getFirst();
+
+    assertThat(decision.allowed()).isFalse();
   }
 
   private AuthorizationCheck check(UUID resourceId) {

@@ -23,6 +23,8 @@ spring:
     contexts: ${ITIP_LIQUIBASE_CONTEXTS:prod}
 
 itip:
+  authorization:
+    batch-timeout-ms: ${ITIP_AUTHORIZATION_BATCH_TIMEOUT_MS:8000}
   defman:
     base-url: ${ITIP_DEFMAN_BASE_URL:}
     connect-timeout-ms: ${ITIP_DEFMAN_CONNECT_TIMEOUT_MS:5000}

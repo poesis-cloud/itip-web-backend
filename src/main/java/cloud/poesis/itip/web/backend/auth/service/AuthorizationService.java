@@ -7,39 +7,123 @@ import cloud.poesis.itip.web.backend.auth.entity.Policy;
 import cloud.poesis.itip.web.backend.auth.entity.RoleCapabilityGrant;
 import cloud.poesis.itip.web.backend.auth.model.AuthorizationCheck;
 import cloud.poesis.itip.web.backend.auth.model.AuthorizationDecision;
+import jakarta.annotation.PreDestroy;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Predicate;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
-@RequiredArgsConstructor
 public class AuthorizationService {
 
   private final AccountService accountService;
   private final List<AuthorizationResourceResolver> resourceResolvers;
   private final ConditionExpressionEvaluator conditionExpressionEvaluator;
+  private final Duration batchDeadline;
+  private final ExecutorService resolutionExecutor;
+
+  public AuthorizationService(
+      AccountService accountService,
+      List<AuthorizationResourceResolver> resourceResolvers,
+      ConditionExpressionEvaluator conditionExpressionEvaluator,
+      @Value("${itip.authorization.batch-timeout-ms:8000}") long batchTimeoutMs) {
+    this.accountService = accountService;
+    this.resourceResolvers = List.copyOf(resourceResolvers);
+    this.conditionExpressionEvaluator = conditionExpressionEvaluator;
+    this.batchDeadline = Duration.ofMillis(batchTimeoutMs);
+    this.resolutionExecutor = Executors.newVirtualThreadPerTaskExecutor();
+  }
+
+  @PreDestroy
+  void shutdown() {
+    resolutionExecutor.shutdownNow();
+  }
 
   public List<AuthorizationDecision> checkMany(String email, List<AuthorizationCheck> checks) {
     Account account = accountService.loadAccountWithRolesAndCapabilities(email);
     List<RoleCapabilityGrant> roleCapabilityGrants =
         accountService.activeRoleCapabilityGrants(account);
-    Map<ResourceKey, Optional<Map<String, Object>>> resolutionCache = new HashMap<>();
+    Map<ResourceKey, Optional<Map<String, Object>>> resolutions =
+        resolveDistinctTargets(account, roleCapabilityGrants, checks);
     return checks.stream()
-        .map(check -> decide(account, roleCapabilityGrants, check, resolutionCache))
+        .map(check -> decide(account, roleCapabilityGrants, check, resolutions))
         .toList();
+  }
+
+  /**
+   * Resolves every distinct resource that at least one check could possibly need, concurrently and
+   * within a single overall deadline, so a batch of up to 100 checks has a bounded total latency
+   * regardless of how many distinct downstream lookups it triggers. A resolution that does not
+   * complete before the deadline is treated as a failure (fail-closed), matching the synchronous
+   * per-call failure handling in {@link #resolve(AuthorizationCheck)}.
+   */
+  private Map<ResourceKey, Optional<Map<String, Object>>> resolveDistinctTargets(
+      Account account,
+      List<RoleCapabilityGrant> roleCapabilityGrants,
+      List<AuthorizationCheck> checks) {
+    Map<ResourceKey, AuthorizationCheck> distinctTargets = new LinkedHashMap<>();
+    for (AuthorizationCheck check : checks) {
+      if (check == null
+          || !hasValidShape(check)
+          || !account.isEnabled()
+          || check.resourceId() == null) {
+        continue;
+      }
+      boolean hasCandidate =
+          roleCapabilityGrants.stream()
+              .filter(matches(check))
+              .anyMatch(grant -> grant.getCapability().getStatus() == CapabilityStatus.ACTIVE);
+      if (!hasCandidate) {
+        continue;
+      }
+      distinctTargets.putIfAbsent(
+          new ResourceKey(check.origin(), check.resource(), check.resourceId()), check);
+    }
+    if (distinctTargets.isEmpty()) {
+      return Map.of();
+    }
+
+    Map<ResourceKey, CompletableFuture<Optional<Map<String, Object>>>> futures =
+        new LinkedHashMap<>();
+    distinctTargets.forEach(
+        (key, check) ->
+            futures.put(
+                key, CompletableFuture.supplyAsync(() -> resolve(check), resolutionExecutor)));
+
+    Instant deadline = Instant.now().plus(batchDeadline);
+    Map<ResourceKey, Optional<Map<String, Object>>> resolutions = new HashMap<>();
+    futures.forEach(
+        (key, future) -> {
+          Duration remaining = Duration.between(Instant.now(), deadline);
+          try {
+            resolutions.put(
+                key,
+                future.get(
+                    Math.max(remaining.toMillis(), 0), java.util.concurrent.TimeUnit.MILLISECONDS));
+          } catch (Exception exception) {
+            future.cancel(true);
+            resolutions.put(key, Optional.empty());
+          }
+        });
+    return resolutions;
   }
 
   private AuthorizationDecision decide(
       Account account,
       List<RoleCapabilityGrant> roleCapabilityGrants,
       AuthorizationCheck check,
-      Map<ResourceKey, Optional<Map<String, Object>>> resolutionCache) {
+      Map<ResourceKey, Optional<Map<String, Object>>> resolutions) {
     Objects.requireNonNull(check, "check is required");
     if (!hasValidShape(check) || !account.isEnabled()) {
       return denied(check);
@@ -55,7 +139,11 @@ public class AuthorizationService {
     }
 
     Optional<Map<String, Object>> target =
-        check.resourceId() != null ? resolveCached(check, resolutionCache) : Optional.empty();
+        check.resourceId() != null
+            ? resolutions.getOrDefault(
+                new ResourceKey(check.origin(), check.resource(), check.resourceId()),
+                Optional.empty())
+            : Optional.empty();
     boolean allowed =
         (check.resourceId() == null || target.isPresent())
             && candidates.stream().anyMatch(grant -> applies(grant, account, target));
@@ -110,12 +198,6 @@ public class AuthorizationService {
     } catch (RuntimeException exception) {
       return Optional.empty();
     }
-  }
-
-  private Optional<Map<String, Object>> resolveCached(
-      AuthorizationCheck check, Map<ResourceKey, Optional<Map<String, Object>>> resolutionCache) {
-    ResourceKey key = new ResourceKey(check.origin(), check.resource(), check.resourceId());
-    return resolutionCache.computeIfAbsent(key, ignored -> resolve(check));
   }
 
   private static boolean hasValidShape(AuthorizationCheck check) {
