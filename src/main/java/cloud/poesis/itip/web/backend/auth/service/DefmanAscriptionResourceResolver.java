@@ -1,6 +1,6 @@
 package cloud.poesis.itip.web.backend.auth.service;
 
-import cloud.poesis.itip.web.backend.auth.entity.PrivilegeResourceOrigin;
+import cloud.poesis.itip.web.backend.auth.entity.CapabilityResourceOrigin;
 import cloud.poesis.itip.web.backend.defman.DefmanAscription;
 import cloud.poesis.itip.web.backend.defman.DefmanClient;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -25,13 +25,13 @@ public class DefmanAscriptionResourceResolver implements AuthorizationResourceRe
   }
 
   @Override
-  public boolean supports(PrivilegeResourceOrigin origin, String resource) {
-    return origin == PrivilegeResourceOrigin.DEFMAN && "ASCRIPTION".equals(resource);
+  public boolean supports(CapabilityResourceOrigin origin, String resource) {
+    return origin == CapabilityResourceOrigin.DEFMAN && "ASCRIPTION".equals(resource);
   }
 
   @Override
   public Optional<Map<String, Object>> resolve(
-      PrivilegeResourceOrigin origin, String resource, UUID resourceId) {
+      CapabilityResourceOrigin origin, String resource, UUID resourceId) {
     if (!supports(origin, resource) || resourceId == null) {
       return Optional.empty();
     }

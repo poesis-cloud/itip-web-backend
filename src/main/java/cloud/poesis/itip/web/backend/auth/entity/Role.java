@@ -39,10 +39,6 @@ public class Role {
   @Column(name = "name", nullable = false, unique = true)
   private String name;
 
-  @Default
-  @Column(name = "system_managed", nullable = false)
-  private boolean systemManaged = false;
-
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)
   private Instant createdAt;
@@ -57,5 +53,5 @@ public class Role {
 
   @Default
   @OneToMany(mappedBy = "role", fetch = FetchType.LAZY)
-  private Set<RolePrivilegeAssignment> rolePrivilegeAssignments = new HashSet<>();
+  private Set<RoleCapabilityGrantAssignment> roleCapabilityGrantAssignments = new HashSet<>();
 }

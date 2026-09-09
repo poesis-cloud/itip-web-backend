@@ -22,14 +22,14 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Immutable;
 
 @Entity
-@Table(name = "privilege_change_audit")
+@Table(name = "role_capability_grant_change_audit")
 @Getter
 @Immutable
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
-public class PrivilegeChangeAudit {
+public class RoleCapabilityGrantChangeAudit {
 
   @Id
   @GenerateUuidV7
@@ -39,18 +39,18 @@ public class PrivilegeChangeAudit {
 
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(
-      name = "privilege_id",
+      name = "role_capability_grant_id",
       nullable = false,
       updatable = false,
-      foreignKey = @ForeignKey(name = "fk_privilege_change_audit_privilege"))
-  private Privilege privilege;
+      foreignKey = @ForeignKey(name = "fk_role_capability_grant_change_audit_grant"))
+  private RoleCapabilityGrant roleCapabilityGrant;
 
-  @Column(name = "privilege_version", nullable = false, updatable = false)
-  private long privilegeVersion;
+  @Column(name = "role_capability_grant_version", nullable = false, updatable = false)
+  private long roleCapabilityGrantVersion;
 
   @Enumerated(EnumType.STRING)
   @Column(name = "action_type", nullable = false, updatable = false)
-  private PrivilegeAuditActionType actionType;
+  private RoleCapabilityGrantAuditActionType actionType;
 
   @Column(name = "previous_state", nullable = false, updatable = false, columnDefinition = "TEXT")
   private String previousState;

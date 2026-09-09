@@ -1,9 +1,10 @@
 package cloud.poesis.itip.web.backend.auth.service;
 
 import cloud.poesis.itip.web.backend.auth.entity.Account;
+import cloud.poesis.itip.web.backend.auth.entity.CapabilityResourceOrigin;
+import cloud.poesis.itip.web.backend.auth.entity.CapabilityStatus;
 import cloud.poesis.itip.web.backend.auth.entity.Policy;
-import cloud.poesis.itip.web.backend.auth.entity.Privilege;
-import cloud.poesis.itip.web.backend.auth.entity.PrivilegeResourceOrigin;
+import cloud.poesis.itip.web.backend.auth.entity.RoleCapabilityGrant;
 import cloud.poesis.itip.web.backend.auth.model.AuthorizationCheck;
 import cloud.poesis.itip.web.backend.auth.model.AuthorizationDecision;
 import java.util.HashMap;
@@ -25,17 +26,18 @@ public class AuthorizationService {
   private final ConditionExpressionEvaluator conditionExpressionEvaluator;
 
   public List<AuthorizationDecision> checkMany(String email, List<AuthorizationCheck> checks) {
-    Account account = accountService.loadAccountWithRolesAndPrivileges(email);
-    List<Privilege> privileges = accountService.activePrivileges(account);
+    Account account = accountService.loadAccountWithRolesAndCapabilities(email);
+    List<RoleCapabilityGrant> roleCapabilityGrants =
+        accountService.activeRoleCapabilityGrants(account);
     Map<ResourceKey, Optional<Map<String, Object>>> resolutionCache = new HashMap<>();
     return checks.stream()
-        .map(check -> decide(account, privileges, check, resolutionCache))
+        .map(check -> decide(account, roleCapabilityGrants, check, resolutionCache))
         .toList();
   }
 
   private AuthorizationDecision decide(
       Account account,
-      List<Privilege> privileges,
+      List<RoleCapabilityGrant> roleCapabilityGrants,
       AuthorizationCheck check,
       Map<ResourceKey, Optional<Map<String, Object>>> resolutionCache) {
     Objects.requireNonNull(check, "check is required");
@@ -43,10 +45,10 @@ public class AuthorizationService {
       return denied(check);
     }
 
-    List<Privilege> candidates =
-        privileges.stream()
+    List<RoleCapabilityGrant> candidates =
+        roleCapabilityGrants.stream()
             .filter(matches(check))
-            .filter(privilege -> privilege.getCapability().isEnabled())
+            .filter(grant -> grant.getCapability().getStatus() == CapabilityStatus.ACTIVE)
             .toList();
     if (candidates.isEmpty()) {
       return denied(check);
@@ -56,7 +58,7 @@ public class AuthorizationService {
         check.resourceId() != null ? resolveCached(check, resolutionCache) : Optional.empty();
     boolean allowed =
         (check.resourceId() == null || target.isPresent())
-            && candidates.stream().anyMatch(privilege -> applies(privilege, account, target));
+            && candidates.stream().anyMatch(grant -> applies(grant, account, target));
     return decision(check, allowed);
   }
 
@@ -69,17 +71,17 @@ public class AuthorizationService {
         check.origin(), check.resource(), check.operation(), check.resourceId(), allowed);
   }
 
-  private Predicate<Privilege> matches(AuthorizationCheck check) {
-    return privilege ->
-        privilege.getCapability().getResourceOrigin() == check.origin()
-            && Objects.equals(privilege.getCapability().getResource(), check.resource())
-            && privilege.getCapability().getOperation() == check.operation();
+  private Predicate<RoleCapabilityGrant> matches(AuthorizationCheck check) {
+    return grant ->
+        grant.getCapability().getResourceOrigin() == check.origin()
+            && Objects.equals(grant.getCapability().getResource(), check.resource())
+            && grant.getCapability().getOperation() == check.operation();
   }
 
   private boolean applies(
-      Privilege privilege, Account account, Optional<Map<String, Object>> target) {
-    return applies(privilege.getCapability().getPolicies(), account, target)
-        && applies(privilege.getPolicies(), account, target);
+      RoleCapabilityGrant grant, Account account, Optional<Map<String, Object>> target) {
+    return applies(grant.getCapability().getPolicies(), account, target)
+        && applies(grant.getPolicies(), account, target);
   }
 
   private boolean applies(
@@ -124,5 +126,5 @@ public class AuthorizationService {
   }
 
   private record ResourceKey(
-      PrivilegeResourceOrigin origin, String resource, java.util.UUID resourceId) {}
+      CapabilityResourceOrigin origin, String resource, java.util.UUID resourceId) {}
 }

@@ -2,9 +2,9 @@ package cloud.poesis.itip.web.backend.auth.service;
 
 import cloud.poesis.itip.web.backend.auth.entity.Capability;
 import cloud.poesis.itip.web.backend.auth.entity.Policy;
-import cloud.poesis.itip.web.backend.auth.entity.Privilege;
-import cloud.poesis.itip.web.backend.auth.entity.PrivilegeAuditActionType;
-import cloud.poesis.itip.web.backend.auth.repository.PrivilegeRepository;
+import cloud.poesis.itip.web.backend.auth.entity.RoleCapabilityGrant;
+import cloud.poesis.itip.web.backend.auth.entity.RoleCapabilityGrantAuditActionType;
+import cloud.poesis.itip.web.backend.auth.repository.RoleCapabilityGrantRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Set;
@@ -14,17 +14,17 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class PrivilegeService {
+public class RoleCapabilityGrantService {
 
-  private final PrivilegeRepository privilegeRepository;
-  private final PrivilegeChangeAuditService privilegeChangeAuditService;
+  private final RoleCapabilityGrantRepository roleCapabilityGrantRepository;
+  private final RoleCapabilityGrantChangeAuditService roleCapabilityGrantChangeAuditService;
   private final ObjectMapper objectMapper;
   private final CapabilityService capabilityService;
   private final PolicyService policyService;
 
   @Transactional
   @SuppressWarnings("null")
-  public Privilege create(CreatePrivilegeCommand command, String actor) {
+  public RoleCapabilityGrant create(CreateRoleCapabilityGrantCommand command, String actor) {
     if (command == null) {
       throw new NullPointerException("command is required");
     }
@@ -36,33 +36,34 @@ public class PrivilegeService {
     Capability capability = capabilityService.require(command.capabilityId());
     Set<Policy> policies = policyService.requireAll(command.policyIds());
 
-    Privilege privilege =
-        Privilege.builder()
+    RoleCapabilityGrant roleCapabilityGrant =
+        RoleCapabilityGrant.builder()
             .capability(capability)
             .policies(policies)
             .createdBy(actor)
             .updatedBy(actor)
             .build();
 
-    Privilege saved = privilegeRepository.save(privilege);
-    privilegeChangeAuditService.recordChange(
-        saved, PrivilegeAuditActionType.CREATE, "null", serializeState(saved), actor);
+    RoleCapabilityGrant saved = roleCapabilityGrantRepository.save(roleCapabilityGrant);
+    roleCapabilityGrantChangeAuditService.recordChange(
+        saved, RoleCapabilityGrantAuditActionType.CREATE, "null", serializeState(saved), actor);
     return saved;
   }
 
   @SuppressWarnings("null")
-  private String serializeState(Privilege privilege) {
-    PrivilegeState state =
-        new PrivilegeState(
-            privilege.getCapability().getId(),
-            privilege.getPolicies().stream().map(Policy::getId).toList(),
-            privilege.getVersion(),
-            privilege.getCreatedBy(),
-            privilege.getUpdatedBy());
+  private String serializeState(RoleCapabilityGrant roleCapabilityGrant) {
+    RoleCapabilityGrantState state =
+        new RoleCapabilityGrantState(
+            roleCapabilityGrant.getCapability().getId(),
+            roleCapabilityGrant.getPolicies().stream().map(Policy::getId).toList(),
+            roleCapabilityGrant.getVersion(),
+            roleCapabilityGrant.getCreatedBy(),
+            roleCapabilityGrant.getUpdatedBy());
     try {
       return objectMapper.writeValueAsString(state);
     } catch (JsonProcessingException exception) {
-      throw new IllegalStateException("Could not serialize privilege audit state", exception);
+      throw new IllegalStateException(
+          "Could not serialize role capability grant audit state", exception);
     }
   }
 
@@ -72,7 +73,7 @@ public class PrivilegeService {
     }
   }
 
-  private record PrivilegeState(
+  private record RoleCapabilityGrantState(
       java.util.UUID capabilityId,
       java.util.List<java.util.UUID> policyIds,
       long version,

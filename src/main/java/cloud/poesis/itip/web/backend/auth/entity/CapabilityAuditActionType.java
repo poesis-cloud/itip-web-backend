@@ -1,12 +1,9 @@
 package cloud.poesis.itip.web.backend.auth.entity;
 
-public enum PrivilegeAction {
+public enum CapabilityAuditActionType {
   CREATE,
-  READ,
   UPDATE,
-  SUBMIT,
-  APPROVE,
   ACTIVATE,
   DISABLE,
-  VIEW
+  DEPRECATE
 }

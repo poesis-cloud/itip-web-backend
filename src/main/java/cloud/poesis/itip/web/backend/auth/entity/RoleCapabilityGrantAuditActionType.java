@@ -1,6 +1,6 @@
 package cloud.poesis.itip.web.backend.auth.entity;
 
-public enum PrivilegeAuditActionType {
+public enum RoleCapabilityGrantAuditActionType {
   CREATE,
   UPDATE,
   ACTIVATE,

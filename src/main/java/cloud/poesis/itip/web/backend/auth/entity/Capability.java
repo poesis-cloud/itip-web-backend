@@ -48,22 +48,19 @@ public class Capability {
 
   @Enumerated(EnumType.STRING)
   @Column(name = "resource_origin", nullable = false)
-  private PrivilegeResourceOrigin resourceOrigin;
+  private CapabilityResourceOrigin resourceOrigin;
 
   @Column(name = "resource", nullable = false)
   private String resource;
 
   @Enumerated(EnumType.STRING)
   @Column(name = "operation", nullable = false)
-  private PrivilegeAction operation;
+  private CapabilityOperation operation;
 
   @Default
-  @Column(name = "enabled", nullable = false)
-  private boolean enabled = true;
-
-  @Default
-  @Column(name = "system_managed", nullable = false)
-  private boolean systemManaged = false;
+  @Enumerated(EnumType.STRING)
+  @Column(name = "status", nullable = false)
+  private CapabilityStatus status = CapabilityStatus.ACTIVE;
 
   @Default
   @ManyToMany

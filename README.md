@@ -44,7 +44,7 @@ taken by the SIE database.
 ### Dev accounts
 
 The dev environment starts with two seeded accounts holding different
-privileges. They exist in dev only.
+role capability grants. They exist in dev only.
 
 | Account | Password |
 | --- | --- |

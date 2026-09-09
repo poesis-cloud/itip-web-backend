@@ -74,7 +74,7 @@ public class AuthController {
               profile.email(),
               profile.fullName(),
               profile.roles(),
-              profile.privileges()));
+              profile.capabilities()));
     } catch (UsernameNotFoundException exception) {
       log.warn(
           "Authenticated principal no longer resolves to an account: username={}",

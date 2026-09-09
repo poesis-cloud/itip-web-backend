@@ -1,12 +1,12 @@
 package cloud.poesis.itip.web.backend.auth.model;
 
-import cloud.poesis.itip.web.backend.auth.entity.PrivilegeAction;
-import cloud.poesis.itip.web.backend.auth.entity.PrivilegeResourceOrigin;
+import cloud.poesis.itip.web.backend.auth.entity.CapabilityOperation;
+import cloud.poesis.itip.web.backend.auth.entity.CapabilityResourceOrigin;
 import java.util.UUID;
 
 public record AuthorizationDecision(
-    PrivilegeResourceOrigin origin,
+    CapabilityResourceOrigin origin,
     String resource,
-    PrivilegeAction operation,
+    CapabilityOperation operation,
     UUID resourceId,
     boolean allowed) {}

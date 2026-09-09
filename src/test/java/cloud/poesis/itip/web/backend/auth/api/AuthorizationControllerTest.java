@@ -9,8 +9,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import cloud.poesis.itip.web.backend.auth.entity.PrivilegeAction;
-import cloud.poesis.itip.web.backend.auth.entity.PrivilegeResourceOrigin;
+import cloud.poesis.itip.web.backend.auth.entity.CapabilityOperation;
+import cloud.poesis.itip.web.backend.auth.entity.CapabilityResourceOrigin;
 import cloud.poesis.itip.web.backend.auth.model.AuthorizationCheck;
 import cloud.poesis.itip.web.backend.auth.model.AuthorizationCheckManyRequest;
 import cloud.poesis.itip.web.backend.auth.model.AuthorizationDecision;
@@ -50,14 +50,14 @@ class AuthorizationControllerTest {
             "authorized@itip.local", "ignored", List.of());
     AuthorizationCheck check =
         new AuthorizationCheck(
-            PrivilegeResourceOrigin.ITIP, "asset", PrivilegeAction.READ, resourceId);
+            CapabilityResourceOrigin.ITIP, "asset", CapabilityOperation.READ, resourceId);
     when(authorizationService.checkMany("authorized@itip.local", List.of(check)))
         .thenReturn(
             List.of(
                 new AuthorizationDecision(
-                    PrivilegeResourceOrigin.ITIP,
+                    CapabilityResourceOrigin.ITIP,
                     "asset",
-                    PrivilegeAction.READ,
+                    CapabilityOperation.READ,
                     resourceId,
                     true)));
     mockMvc()
@@ -97,7 +97,7 @@ class AuthorizationControllerTest {
         new AuthorizationCheckManyRequest(
             List.of(
                 new AuthorizationCheck(
-                    PrivilegeResourceOrigin.ITIP, "asset", PrivilegeAction.READ, null)));
+                    CapabilityResourceOrigin.ITIP, "asset", CapabilityOperation.READ, null)));
     AnonymousAuthenticationToken authentication =
         new AnonymousAuthenticationToken("key", "anonymousUser", List.of(() -> "ROLE_ANONYMOUS"));
 

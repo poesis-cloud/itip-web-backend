@@ -1,0 +1,80 @@
+# Migrates the capability lifecycle from the `enabled` boolean to the `status` enum
+# (ACTIVE / DISABLED / DEPRECATED — only ACTIVE authorizes), removes the abandoned
+# `system_managed` markers, and introduces the append-only capability_change_audit ledger.
+databaseChangeLog:
+- changeSet:
+    id: 0008-1-capability-status-column
+    author: copilot
+    changes:
+    - addColumn:
+        tableName: capability
+        columns:
+        - column: {name: status, type: VARCHAR(255), defaultValue: ACTIVE}
+    - update:
+        tableName: capability
+        columns:
+        - column: {name: status, value: ACTIVE}
+        where: enabled = true
+    - update:
+        tableName: capability
+        columns:
+        - column: {name: status, value: DISABLED}
+        where: enabled = false
+    - addNotNullConstraint: {tableName: capability, columnName: status, columnDataType: VARCHAR(255)}
+    - dropColumn: {tableName: capability, columnName: enabled}
+    - dropColumn: {tableName: capability, columnName: system_managed}
+    - dropColumn: {tableName: role, columnName: system_managed}
+
+- changeSet:
+    id: 0008-2-capability-status-check
+    author: copilot
+    dbms: postgresql
+    changes:
+    - sql:
+        splitStatements: false
+        sql: |
+          ALTER TABLE capability
+            ADD CONSTRAINT ck_capability_status
+            CHECK (status IN ('ACTIVE', 'DISABLED', 'DEPRECATED'));
+
+- changeSet:
+    id: 0008-3-create-capability-change-audit
+    author: copilot
+    changes:
+    - createTable:
+        tableName: capability_change_audit
+        columns:
+        - column: {name: id, type: UUID, constraints: {nullable: false, primaryKey: true, primaryKeyName: capability_change_auditPK}}
+        - column: {name: action_at, type: TIMESTAMP(6) WITH TIME ZONE, constraints: {nullable: false}}
+        - column: {name: action_by, type: VARCHAR(255), constraints: {nullable: false}}
+        - column: {name: action_type, type: VARCHAR(255), constraints: {nullable: false}}
+        - column: {name: new_state, type: TEXT, constraints: {nullable: false}}
+        - column: {name: previous_state, type: TEXT, constraints: {nullable: false}}
+        - column: {name: capability_version, type: BIGINT, constraints: {nullable: false}}
+        - column: {name: capability_id, type: UUID, constraints: {nullable: false}}
+    - addForeignKeyConstraint: {baseTableName: capability_change_audit, baseColumnNames: capability_id, constraintName: fk_capability_change_audit_capability, referencedTableName: capability, referencedColumnNames: id}
+
+- changeSet:
+    id: 0008-4-capability-change-audit-guards
+    author: copilot
+    dbms: postgresql
+    changes:
+    - sql:
+        splitStatements: false
+        sql: |
+          ALTER TABLE capability_change_audit ALTER COLUMN id SET DEFAULT uuid_v7();
+          SELECT tgf_attach_uuid_v7_trigger('capability_change_audit');
+          SELECT tgf_attach_uuid_v7_guard_trigger('capability_change_audit');
+
+          CREATE OR REPLACE FUNCTION tgf_reject_capability_change_audit_mutation() RETURNS TRIGGER AS $$
+          BEGIN
+              RAISE EXCEPTION 'capability_change_audit is append-only'
+                  USING ERRCODE = 'check_violation';
+          END;
+          $$ LANGUAGE plpgsql;
+
+          DROP TRIGGER IF EXISTS trg_capability_change_audit_append_only ON capability_change_audit;
+          CREATE TRIGGER trg_capability_change_audit_append_only
+          BEFORE UPDATE OR DELETE OR TRUNCATE ON capability_change_audit
+          FOR EACH STATEMENT
+          EXECUTE FUNCTION tgf_reject_capability_change_audit_mutation();

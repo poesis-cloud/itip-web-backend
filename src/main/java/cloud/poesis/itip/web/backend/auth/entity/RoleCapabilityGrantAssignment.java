@@ -19,14 +19,14 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
 @Entity
-@Table(name = "role_privilege_assignment")
+@Table(name = "role_capability_grant_assignment")
 @Getter
 @Setter
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class RolePrivilegeAssignment {
+public class RoleCapabilityGrantAssignment {
 
   @Id
   @GenerateUuidV7
@@ -38,21 +38,21 @@ public class RolePrivilegeAssignment {
   @JoinColumn(
       name = "role_id",
       nullable = false,
-      foreignKey = @ForeignKey(name = "fk_role_privilege_assignment_role"))
+      foreignKey = @ForeignKey(name = "fk_role_capability_grant_assignment_role"))
   private Role role;
 
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(
-      name = "privilege_id",
+      name = "role_capability_grant_id",
       nullable = false,
-      foreignKey = @ForeignKey(name = "fk_role_privilege_assignment_privilege"))
-  private Privilege privilege;
+      foreignKey = @ForeignKey(name = "fk_role_capability_grant_assignment_grant"))
+  private RoleCapabilityGrant roleCapabilityGrant;
 
   @ManyToOne(fetch = FetchType.LAZY, optional = true)
   @JoinColumn(
       name = "assigned_by",
       nullable = true,
-      foreignKey = @ForeignKey(name = "fk_role_privilege_assignment_assigned_by"))
+      foreignKey = @ForeignKey(name = "fk_role_capability_grant_assignment_assigned_by"))
   private Account assignedBy;
 
   @CreationTimestamp

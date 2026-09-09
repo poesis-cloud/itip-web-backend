@@ -10,9 +10,9 @@ import static org.mockito.Mockito.when;
 
 import cloud.poesis.itip.web.backend.auth.entity.Capability;
 import cloud.poesis.itip.web.backend.auth.entity.Policy;
-import cloud.poesis.itip.web.backend.auth.entity.Privilege;
-import cloud.poesis.itip.web.backend.auth.entity.PrivilegeAuditActionType;
-import cloud.poesis.itip.web.backend.auth.repository.PrivilegeRepository;
+import cloud.poesis.itip.web.backend.auth.entity.RoleCapabilityGrant;
+import cloud.poesis.itip.web.backend.auth.entity.RoleCapabilityGrantAuditActionType;
+import cloud.poesis.itip.web.backend.auth.repository.RoleCapabilityGrantRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Set;
 import java.util.UUID;
@@ -23,24 +23,24 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class PrivilegeServiceTest {
+class RoleCapabilityGrantServiceTest {
 
-  @Mock private PrivilegeRepository privilegeRepository;
+  @Mock private RoleCapabilityGrantRepository roleCapabilityGrantRepository;
 
-  @Mock private PrivilegeChangeAuditService privilegeChangeAuditService;
+  @Mock private RoleCapabilityGrantChangeAuditService roleCapabilityGrantChangeAuditService;
 
   @Mock private CapabilityService capabilityService;
 
   @Mock private PolicyService policyService;
 
-  private PrivilegeService privilegeService;
+  private RoleCapabilityGrantService roleCapabilityGrantService;
 
   @BeforeEach
   void setUp() {
-    privilegeService =
-        new PrivilegeService(
-            privilegeRepository,
-            privilegeChangeAuditService,
+    roleCapabilityGrantService =
+        new RoleCapabilityGrantService(
+            roleCapabilityGrantRepository,
+            roleCapabilityGrantChangeAuditService,
             new ObjectMapper(),
             capabilityService,
             policyService);
@@ -48,18 +48,19 @@ class PrivilegeServiceTest {
 
   @Test
   @SuppressWarnings("null")
-  void createShouldPersistPrivilegeWithCapabilityPoliciesAndAuditItsState() {
+  void createShouldPersistGrantWithCapabilityPoliciesAndAuditItsState() {
     UUID capabilityId = UUID.randomUUID();
     UUID policyId = UUID.randomUUID();
     Capability capability = Capability.builder().id(capabilityId).build();
     Policy policy = Policy.builder().id(policyId).build();
-    CreatePrivilegeCommand command = new CreatePrivilegeCommand(capabilityId, Set.of(policyId));
+    CreateRoleCapabilityGrantCommand command =
+        new CreateRoleCapabilityGrantCommand(capabilityId, Set.of(policyId));
     when(capabilityService.require(capabilityId)).thenReturn(capability);
     when(policyService.requireAll(command.policyIds())).thenReturn(Set.of(policy));
-    when(privilegeRepository.save(any(Privilege.class)))
+    when(roleCapabilityGrantRepository.save(any(RoleCapabilityGrant.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
 
-    Privilege result = privilegeService.create(command, "alice");
+    RoleCapabilityGrant result = roleCapabilityGrantService.create(command, "alice");
 
     assertThat(result.getCapability()).isSameAs(capability);
     assertThat(result.getPolicies()).containsExactly(policy);
@@ -69,10 +70,10 @@ class PrivilegeServiceTest {
     verify(capabilityService).require(capabilityId);
     verify(policyService).requireAll(command.policyIds());
 
-    verify(privilegeChangeAuditService)
+    verify(roleCapabilityGrantChangeAuditService)
         .recordChange(
             eq(result),
-            eq(PrivilegeAuditActionType.CREATE),
+            eq(RoleCapabilityGrantAuditActionType.CREATE),
             eq("null"),
             org.mockito.ArgumentMatchers.contains(capabilityId.toString()),
             eq("alice"));
@@ -80,34 +81,34 @@ class PrivilegeServiceTest {
 
   @Test
   void createShouldRejectBlankActor() {
-    assertThatThrownBy(() -> privilegeService.create(validCommand(), " "))
+    assertThatThrownBy(() -> roleCapabilityGrantService.create(validCommand(), " "))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessage("actor is required");
 
-    verifyNoInteractions(privilegeRepository, privilegeChangeAuditService);
+    verifyNoInteractions(roleCapabilityGrantRepository, roleCapabilityGrantChangeAuditService);
   }
 
   @Test
   void createShouldRejectNullCommand() {
-    assertThatThrownBy(() -> privilegeService.create(null, "alice"))
+    assertThatThrownBy(() -> roleCapabilityGrantService.create(null, "alice"))
         .isInstanceOf(NullPointerException.class)
         .hasMessage("command is required");
 
-    verifyNoInteractions(privilegeRepository, privilegeChangeAuditService);
+    verifyNoInteractions(roleCapabilityGrantRepository, roleCapabilityGrantChangeAuditService);
   }
 
   @Test
   void createShouldRejectMissingCapabilityId() {
-    CreatePrivilegeCommand command = new CreatePrivilegeCommand(null, Set.of());
+    CreateRoleCapabilityGrantCommand command = new CreateRoleCapabilityGrantCommand(null, Set.of());
 
-    assertThatThrownBy(() -> privilegeService.create(command, "alice"))
+    assertThatThrownBy(() -> roleCapabilityGrantService.create(command, "alice"))
         .isInstanceOf(NullPointerException.class)
         .hasMessage("capabilityId is required");
 
-    verifyNoInteractions(privilegeRepository, privilegeChangeAuditService);
+    verifyNoInteractions(roleCapabilityGrantRepository, roleCapabilityGrantChangeAuditService);
   }
 
-  private static CreatePrivilegeCommand validCommand() {
-    return new CreatePrivilegeCommand(UUID.randomUUID(), Set.of());
+  private static CreateRoleCapabilityGrantCommand validCommand() {
+    return new CreateRoleCapabilityGrantCommand(UUID.randomUUID(), Set.of());
   }
 }

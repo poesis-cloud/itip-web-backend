@@ -27,15 +27,20 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+/**
+ * The octroi of a {@link Capability} that a {@link Role} can be assigned (via {@link
+ * RoleCapabilityGrantAssignment}). Carries policies contextual to this specific grant, distinct in
+ * scope from the capability-wide policy lock on {@link Capability#getPolicies()}.
+ */
 @Entity
-@Table(name = "privilege")
+@Table(name = "role_capability_grant")
 @Getter
 @Setter
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
-public class Privilege {
+public class RoleCapabilityGrant {
 
   @Id
   @GenerateUuidV7
@@ -47,14 +52,14 @@ public class Privilege {
   @JoinColumn(
       name = "capability_id",
       nullable = false,
-      foreignKey = @ForeignKey(name = "fk_privilege_capability"))
+      foreignKey = @ForeignKey(name = "fk_role_capability_grant_capability"))
   private Capability capability;
 
   @Default
   @ManyToMany
   @JoinTable(
-      name = "privilege_policy",
-      joinColumns = @JoinColumn(name = "privilege_id"),
+      name = "role_capability_grant_policy",
+      joinColumns = @JoinColumn(name = "role_capability_grant_id"),
       inverseJoinColumns = @JoinColumn(name = "policy_id"))
   private Set<Policy> policies = new HashSet<>();
 
@@ -77,6 +82,6 @@ public class Privilege {
   private Instant updatedAt;
 
   @Default
-  @OneToMany(mappedBy = "privilege", fetch = FetchType.LAZY)
-  private Set<RolePrivilegeAssignment> rolePrivilegeAssignments = new HashSet<>();
+  @OneToMany(mappedBy = "roleCapabilityGrant", fetch = FetchType.LAZY)
+  private Set<RoleCapabilityGrantAssignment> roleCapabilityGrantAssignments = new HashSet<>();
 }

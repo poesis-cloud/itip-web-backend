@@ -3,7 +3,7 @@ package cloud.poesis.itip.web.backend.auth.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
-import cloud.poesis.itip.web.backend.auth.entity.PrivilegeResourceOrigin;
+import cloud.poesis.itip.web.backend.auth.entity.CapabilityResourceOrigin;
 import cloud.poesis.itip.web.backend.defman.DefmanAscription;
 import cloud.poesis.itip.web.backend.defman.DefmanClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,9 +28,9 @@ class DefmanAscriptionResourceResolverTest {
 
   @Test
   void supportsOnlyDefmanAscriptions() {
-    assertThat(resolver.supports(PrivilegeResourceOrigin.DEFMAN, "ASCRIPTION")).isTrue();
-    assertThat(resolver.supports(PrivilegeResourceOrigin.ITIP, "ASCRIPTION")).isFalse();
-    assertThat(resolver.supports(PrivilegeResourceOrigin.DEFMAN, "STRUCTURE")).isFalse();
+    assertThat(resolver.supports(CapabilityResourceOrigin.DEFMAN, "ASCRIPTION")).isTrue();
+    assertThat(resolver.supports(CapabilityResourceOrigin.ITIP, "ASCRIPTION")).isFalse();
+    assertThat(resolver.supports(CapabilityResourceOrigin.DEFMAN, "STRUCTURE")).isFalse();
   }
 
   @Test
@@ -41,7 +41,7 @@ class DefmanAscriptionResourceResolverTest {
             new DefmanAscription(
                 id, new ObjectMapper().readTree("{\"ownerId\":\"actor-1\"}"), null, "ACTIVE"));
 
-    var target = resolver.resolve(PrivilegeResourceOrigin.DEFMAN, "ASCRIPTION", id).orElseThrow();
+    var target = resolver.resolve(CapabilityResourceOrigin.DEFMAN, "ASCRIPTION", id).orElseThrow();
 
     assertThat(target)
         .containsEntry("id", id.toString())
@@ -56,6 +56,6 @@ class DefmanAscriptionResourceResolverTest {
     UUID id = UUID.randomUUID();
     when(defmanClient.getAscription(id)).thenThrow(new IllegalStateException("unavailable"));
 
-    assertThat(resolver.resolve(PrivilegeResourceOrigin.DEFMAN, "ASCRIPTION", id)).isEmpty();
+    assertThat(resolver.resolve(CapabilityResourceOrigin.DEFMAN, "ASCRIPTION", id)).isEmpty();
   }
 }

@@ -6,11 +6,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import cloud.poesis.itip.web.backend.auth.entity.Account;
 import cloud.poesis.itip.web.backend.auth.entity.AccountRoleAssignment;
 import cloud.poesis.itip.web.backend.auth.entity.Capability;
-import cloud.poesis.itip.web.backend.auth.entity.Privilege;
-import cloud.poesis.itip.web.backend.auth.entity.PrivilegeAction;
-import cloud.poesis.itip.web.backend.auth.entity.PrivilegeResourceOrigin;
+import cloud.poesis.itip.web.backend.auth.entity.CapabilityOperation;
+import cloud.poesis.itip.web.backend.auth.entity.CapabilityResourceOrigin;
+import cloud.poesis.itip.web.backend.auth.entity.CapabilityStatus;
 import cloud.poesis.itip.web.backend.auth.entity.Role;
-import cloud.poesis.itip.web.backend.auth.entity.RolePrivilegeAssignment;
+import cloud.poesis.itip.web.backend.auth.entity.RoleCapabilityGrant;
+import cloud.poesis.itip.web.backend.auth.entity.RoleCapabilityGrantAssignment;
 import cloud.poesis.itip.web.backend.auth.service.AccountRoleAssignmentService;
 import cloud.poesis.itip.web.backend.auth.service.AccountService;
 import cloud.poesis.itip.web.backend.auth.service.RoleService;
@@ -43,7 +44,8 @@ class AccountRepositoryIntegrityTest {
 
   @Autowired private AccountRoleAssignmentRepository accountRoleAssignmentRepository;
 
-  @Autowired private RolePrivilegeAssignmentRepository rolePrivilegeAssignmentRepository;
+  @Autowired
+  private RoleCapabilityGrantAssignmentRepository roleCapabilityGrantAssignmentRepository;
 
   @Autowired private AccountService accountService;
 
@@ -51,39 +53,41 @@ class AccountRepositoryIntegrityTest {
   void ensureActiveAssignmentUniquenessForTestDatabase() {
     jdbcTemplate.execute(
         """
-        ALTER TABLE role_privilege_assignment
+        ALTER TABLE role_capability_grant_assignment
         ADD COLUMN IF NOT EXISTS role_id_active UUID GENERATED ALWAYS AS (
           CASE WHEN revoked_at IS NULL THEN role_id ELSE NULL END
         )
         """);
     jdbcTemplate.execute(
         """
-        ALTER TABLE role_privilege_assignment
-        ADD COLUMN IF NOT EXISTS privilege_id_active UUID GENERATED ALWAYS AS (
-          CASE WHEN revoked_at IS NULL THEN privilege_id ELSE NULL END
+        ALTER TABLE role_capability_grant_assignment
+        ADD COLUMN IF NOT EXISTS role_capability_grant_id_active UUID GENERATED ALWAYS AS (
+          CASE WHEN revoked_at IS NULL THEN role_capability_grant_id ELSE NULL END
         )
         """);
     jdbcTemplate.execute(
         """
-        CREATE UNIQUE INDEX IF NOT EXISTS uq_role_privilege_assignment_active_test
-        ON role_privilege_assignment (role_id_active, privilege_id_active)
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_role_capability_grant_assignment_active_test
+        ON role_capability_grant_assignment (role_id_active, role_capability_grant_id_active)
         """);
   }
 
   @Test
-  void duplicateRolePrivilegeAssignmentShouldFail() {
+  void duplicateRoleCapabilityGrantAssignmentShouldFail() {
     Role role = persistRole("ADMIN");
-    Privilege privilege = persistPrivilege();
+    RoleCapabilityGrant grant = persistGrant();
 
-    rolePrivilegeAssignmentRepository.saveAndFlush(
+    roleCapabilityGrantAssignmentRepository.saveAndFlush(
         Objects.requireNonNull(
-            RolePrivilegeAssignment.builder().role(role).privilege(privilege).build()));
+            RoleCapabilityGrantAssignment.builder().role(role).roleCapabilityGrant(grant).build()));
 
-    RolePrivilegeAssignment duplicate =
-        RolePrivilegeAssignment.builder().role(role).privilege(privilege).build();
+    RoleCapabilityGrantAssignment duplicate =
+        RoleCapabilityGrantAssignment.builder().role(role).roleCapabilityGrant(grant).build();
 
     assertThatThrownBy(
-            () -> rolePrivilegeAssignmentRepository.saveAndFlush(Objects.requireNonNull(duplicate)))
+            () ->
+                roleCapabilityGrantAssignmentRepository.saveAndFlush(
+                    Objects.requireNonNull(duplicate)))
         .isInstanceOf(DataIntegrityViolationException.class);
   }
 
@@ -116,7 +120,7 @@ class AccountRepositoryIntegrityTest {
             () ->
                 jdbcTemplate.update(
                     """
-                    INSERT INTO role_privilege_assignment (id, role_id, privilege_id, assigned_at)
+                    INSERT INTO role_capability_grant_assignment (id, role_id, role_capability_grant_id, assigned_at)
                     VALUES (RANDOM_UUID(), RANDOM_UUID(), RANDOM_UUID(), CURRENT_TIMESTAMP)
                     """))
         .isInstanceOf(DataIntegrityViolationException.class);
@@ -126,11 +130,12 @@ class AccountRepositoryIntegrityTest {
   void accountShouldBeReturnedWithoutActiveAssignmentsAndServiceAuthoritiesShouldBeEmpty() {
     Account account = persistAccount("no-active@itip.local");
     Role role = persistRole("OPS");
-    Privilege privilege = persistPrivilege();
+    RoleCapabilityGrant grant = persistGrant();
 
-    RolePrivilegeAssignment rolePrivilegeAssignment =
-        RolePrivilegeAssignment.builder().role(role).privilege(privilege).build();
-    rolePrivilegeAssignmentRepository.saveAndFlush(Objects.requireNonNull(rolePrivilegeAssignment));
+    RoleCapabilityGrantAssignment roleCapabilityGrantAssignment =
+        RoleCapabilityGrantAssignment.builder().role(role).roleCapabilityGrant(grant).build();
+    roleCapabilityGrantAssignmentRepository.saveAndFlush(
+        Objects.requireNonNull(roleCapabilityGrantAssignment));
 
     accountRoleAssignmentRepository.saveAndFlush(
         Objects.requireNonNull(
@@ -143,7 +148,7 @@ class AccountRepositoryIntegrityTest {
     entityManager.clear();
 
     Account loaded =
-        accountRepository.findByEmailWithRolesAndPrivileges("no-active@itip.local").orElseThrow();
+        accountRepository.findByEmailWithRolesAndCapabilities("no-active@itip.local").orElseThrow();
 
     assertThat(loaded.getEmail()).isEqualTo("no-active@itip.local");
     assertThat(loaded.getAccountRoleAssignments())
@@ -173,19 +178,23 @@ class AccountRepositoryIntegrityTest {
     return entityManager.persistFlushFind(role);
   }
 
-  private Privilege persistPrivilege() {
+  private RoleCapabilityGrant persistGrant() {
     Capability capability =
         entityManager.persistFlushFind(
             Capability.builder()
-                .resourceOrigin(PrivilegeResourceOrigin.ITIP)
-                .resource("PRIVILEGE")
-                .operation(PrivilegeAction.READ)
-                .enabled(true)
+                .resourceOrigin(CapabilityResourceOrigin.ITIP)
+                .resource("CAPABILITY")
+                .operation(CapabilityOperation.READ)
+                .status(CapabilityStatus.ACTIVE)
                 .createdBy("test")
                 .updatedBy("test")
                 .build());
-    Privilege privilege =
-        Privilege.builder().capability(capability).createdBy("test").updatedBy("test").build();
-    return entityManager.persistFlushFind(privilege);
+    RoleCapabilityGrant grant =
+        RoleCapabilityGrant.builder()
+            .capability(capability)
+            .createdBy("test")
+            .updatedBy("test")
+            .build();
+    return entityManager.persistFlushFind(grant);
   }
 }

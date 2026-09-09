@@ -3,8 +3,9 @@ package cloud.poesis.itip.web.backend.auth.service;
 import cloud.poesis.itip.web.backend.auth.entity.Account;
 import cloud.poesis.itip.web.backend.auth.entity.AccountRoleAssignment;
 import cloud.poesis.itip.web.backend.auth.entity.Capability;
-import cloud.poesis.itip.web.backend.auth.entity.Privilege;
+import cloud.poesis.itip.web.backend.auth.entity.CapabilityStatus;
 import cloud.poesis.itip.web.backend.auth.entity.Role;
+import cloud.poesis.itip.web.backend.auth.entity.RoleCapabilityGrant;
 import cloud.poesis.itip.web.backend.auth.model.AccountProfile;
 import cloud.poesis.itip.web.backend.auth.repository.AccountRepository;
 import java.time.Instant;
@@ -43,7 +44,7 @@ public class AccountService implements UserDetailsService {
   public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
     Account account =
         accountRepository
-            .findByEmailWithRolesAndPrivileges(email)
+            .findByEmailWithRolesAndCapabilities(email)
             .orElseThrow(() -> new UsernameNotFoundException("Account not found: " + email));
 
     Instant now = Instant.now();
@@ -57,9 +58,9 @@ public class AccountService implements UserDetailsService {
                             || assignment.getExpiresAt().isAfter(now)))
             .map(assignment -> assignment.getRole())
             .filter(Objects::nonNull)
-            .flatMap(role -> snapshot(role.getRolePrivilegeAssignments()).stream())
-            .filter(rolePrivilegeAssignment -> rolePrivilegeAssignment.getUnassignedAt() == null)
-            .map(rolePrivilegeAssignment -> rolePrivilegeAssignment.getPrivilege())
+            .flatMap(role -> snapshot(role.getRoleCapabilityGrantAssignments()).stream())
+            .filter(assignment -> assignment.getUnassignedAt() == null)
+            .map(assignment -> assignment.getRoleCapabilityGrant())
             .filter(Objects::nonNull)
             .map(AccountService::authorityOf)
             .filter(Objects::nonNull)
@@ -79,13 +80,13 @@ public class AccountService implements UserDetailsService {
         .orElseThrow(() -> new UsernameNotFoundException("Account not found: " + email));
   }
 
-  public Account loadAccountWithRolesAndPrivileges(String email) {
+  public Account loadAccountWithRolesAndCapabilities(String email) {
     return accountRepository
-        .findByEmailWithRolesAndPrivileges(email)
+        .findByEmailWithRolesAndCapabilities(email)
         .orElseThrow(() -> new UsernameNotFoundException("Account not found: " + email));
   }
 
-  public List<Privilege> activePrivileges(Account account) {
+  public List<RoleCapabilityGrant> activeRoleCapabilityGrants(Account account) {
     Instant now = Instant.now();
     return snapshot(account.getAccountRoleAssignments()).stream()
         .filter(
@@ -95,15 +96,15 @@ public class AccountService implements UserDetailsService {
                         || assignment.getExpiresAt().isAfter(now)))
         .map(assignment -> assignment.getRole())
         .filter(Objects::nonNull)
-        .flatMap(role -> snapshot(role.getRolePrivilegeAssignments()).stream())
-        .filter(rolePrivilegeAssignment -> rolePrivilegeAssignment.getUnassignedAt() == null)
-        .map(rolePrivilegeAssignment -> rolePrivilegeAssignment.getPrivilege())
+        .flatMap(role -> snapshot(role.getRoleCapabilityGrantAssignments()).stream())
+        .filter(assignment -> assignment.getUnassignedAt() == null)
+        .map(assignment -> assignment.getRoleCapabilityGrant())
         .filter(Objects::nonNull)
         .toList();
   }
 
   public AccountProfile describeAccount(String email) {
-    Account account = loadAccountWithRolesAndPrivileges(email);
+    Account account = loadAccountWithRolesAndCapabilities(email);
     List<String> roles =
         activeRoles(account).stream()
             .map(role -> role.getName())
@@ -111,15 +112,15 @@ public class AccountService implements UserDetailsService {
             .distinct()
             .sorted()
             .toList();
-    List<String> privileges =
-        activePrivileges(account).stream()
+    List<String> capabilities =
+        activeRoleCapabilityGrants(account).stream()
             .map(AccountService::authorityOf)
             .filter(Objects::nonNull)
             .distinct()
             .sorted()
             .toList();
     return new AccountProfile(
-        account.getId(), account.getEmail(), account.getFullName(), roles, privileges);
+        account.getId(), account.getEmail(), account.getFullName(), roles, capabilities);
   }
 
   private static List<Role> activeRoles(Account account) {
@@ -139,10 +140,10 @@ public class AccountService implements UserDetailsService {
     return source == null ? Set.of() : new HashSet<>(source);
   }
 
-  private static String authorityOf(Privilege privilege) {
-    Capability capability = privilege.getCapability();
+  private static String authorityOf(RoleCapabilityGrant roleCapabilityGrant) {
+    Capability capability = roleCapabilityGrant.getCapability();
     if (capability == null
-        || !capability.isEnabled()
+        || capability.getStatus() != CapabilityStatus.ACTIVE
         || capability.getResourceOrigin() == null
         || capability.getResource() == null
         || capability.getOperation() == null) {

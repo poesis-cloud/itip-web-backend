@@ -1,6 +1,6 @@
 package cloud.poesis.itip.web.backend.auth.entity;
 
-public enum PrivilegeResourceOrigin {
+public enum CapabilityResourceOrigin {
   DEFMAN,
   ITIP,
   UI
