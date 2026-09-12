@@ -14,6 +14,10 @@ git commit -s -m "your message"
 
 This appends a `Signed-off-by: Your Name <your.email@example.com>` trailer certifying DCO 1.1:
 
+Commits authored by `copilot-swe-agent[bot]` from the Copilot cloud agent are also accepted when
+they include a human `Co-authored-by:` trailer, because the generated commit author is the agent
+bot rather than the contributing user.
+
 ```text
 Developer Certificate of Origin
 Version 1.1

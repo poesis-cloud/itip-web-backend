@@ -52,18 +52,31 @@ jobs:
             [ -z "${sha}" ] && continue
             author_name="$(git show -s --format='%an' "${sha}")"
             author_email="$(git show -s --format='%ae' "${sha}")"
+            message="$(git show -s --format='%B' "${sha}")"
             expected="Signed-off-by: ${author_name} <${author_email}>"
-            if git show -s --format='%B' "${sha}" | grep -qxF "${expected}"; then
+            if printf '%s\n' "${message}" | grep -qxF "${expected}"; then
               echo "PASS  ${sha:0:12}  ${expected}"
+            elif [ "${author_name}" = "copilot-swe-agent[bot]" ] && [ "${author_email}" = "198982749+Copilot@users.noreply.github.com" ] \
+              && printf '%s\n' "${message}" | grep -qi '^Co-authored-by:'; then
+              echo "PASS  ${sha:0:12}  Copilot-authored commit carries a human Co-authored-by trailer"
             else
               echo "FAIL  ${sha:0:12}  missing or mismatched Signed-off-by"
               echo "      expected: ${expected}"
-              found="$(git show -s --format='%B' "${sha}" | grep -i '^Signed-off-by:' || true)"
+              found="$(printf '%s\n' "${message}" | grep -i '^Signed-off-by:' || true)"
               if [ -n "${found}" ]; then
                 echo "      found:"
                 printf '%s\n' "${found}" | sed 's/^/        /'
               else
                 echo "      found:    (no Signed-off-by trailer)"
+              fi
+              if [ "${author_name}" = "copilot-swe-agent[bot]" ] && [ "${author_email}" = "198982749+Copilot@users.noreply.github.com" ]; then
+                coauthors="$(printf '%s\n' "${message}" | grep -i '^Co-authored-by:' || true)"
+                if [ -n "${coauthors}" ]; then
+                  echo "      co-authored-by:"
+                  printf '%s\n' "${coauthors}" | sed 's/^/        /'
+                else
+                  echo "      co-authored-by: (none)"
+                fi
               fi
               fail=1
             fi
