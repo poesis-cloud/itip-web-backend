@@ -4,6 +4,12 @@ databaseChangeLog:
     author: copilot
     context: dev
     dbms: postgresql
+    # This changeset was mutated after it had already been applied (commit 0035c37
+    # replaced the committed working bcrypt credentials with a disabled placeholder).
+    # Databases migrated before that commit still record the pre-mutation checksum, so
+    # it is declared valid here to keep them startable. Do not mutate this changeset
+    # again: add a new changeset instead.
+    validCheckSum: "9:b784edbc05814f155ea9a7f0b1b4e36d"
     changes:
     - sql:
         splitStatements: false
