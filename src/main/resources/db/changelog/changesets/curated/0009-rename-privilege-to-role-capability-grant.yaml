@@ -1,0 +1,96 @@
+databaseChangeLog:
+- changeSet:
+    id: 0009-1-rename-privilege-to-role-capability-grant
+    author: copilot
+    dbms: postgresql
+    changes:
+    - sql:
+        splitStatements: false
+        sql: |
+          -- Rename core tables: privilege becomes role_capability_grant to reflect its
+          -- real semantics (the octroi of a Capability to a Role, carrying grant-scoped
+          -- policies distinct from the capability-wide policy lock).
+          ALTER TABLE privilege RENAME TO role_capability_grant;
+          ALTER TABLE privilege_policy RENAME TO role_capability_grant_policy;
+          ALTER TABLE role_capability_grant_policy RENAME COLUMN privilege_id TO role_capability_grant_id;
+          ALTER TABLE role_privilege_assignment RENAME TO role_capability_grant_assignment;
+          ALTER TABLE role_capability_grant_assignment RENAME COLUMN privilege_id TO role_capability_grant_id;
+          ALTER TABLE privilege_change_audit RENAME TO role_capability_grant_change_audit;
+          ALTER TABLE role_capability_grant_change_audit RENAME COLUMN privilege_id TO role_capability_grant_id;
+          ALTER TABLE role_capability_grant_change_audit RENAME COLUMN privilege_version TO role_capability_grant_version;
+
+          -- Rename primary key indexes/constraints (Liquibase-generated default names).
+          ALTER INDEX "privilegePK" RENAME TO "role_capability_grantPK";
+          ALTER INDEX "role_privilege_assignmentPK" RENAME TO "role_capability_grant_assignmentPK";
+          ALTER INDEX "privilege_policyPK" RENAME TO "role_capability_grant_policyPK";
+          ALTER INDEX "privilege_change_auditPK" RENAME TO "role_capability_grant_change_auditPK";
+
+          -- Rename foreign key constraints for consistency with new table/column names.
+          ALTER TABLE role_capability_grant
+            RENAME CONSTRAINT fk_privilege_capability TO fk_role_capability_grant_capability;
+          ALTER TABLE role_capability_grant_policy
+            RENAME CONSTRAINT fk_privilege_policy_privilege TO fk_role_capability_grant_policy_grant;
+          ALTER TABLE role_capability_grant_policy
+            RENAME CONSTRAINT fk_privilege_policy_policy TO fk_role_capability_grant_policy_policy;
+          ALTER TABLE role_capability_grant_assignment
+            RENAME CONSTRAINT fk_role_privilege_assignment_privilege TO fk_role_capability_grant_assignment_grant;
+          ALTER TABLE role_capability_grant_assignment
+            RENAME CONSTRAINT fk_role_privilege_assignment_role TO fk_role_capability_grant_assignment_role;
+          ALTER TABLE role_capability_grant_assignment
+            RENAME CONSTRAINT fk_role_privilege_assignment_assigned_by TO fk_role_capability_grant_assignment_assigned_by;
+          ALTER TABLE role_capability_grant_change_audit
+            RENAME CONSTRAINT fk_privilege_change_audit_privilege TO fk_role_capability_grant_change_audit_grant;
+
+          -- Rename the partial unique index guarding "one active grant per (role, grant)".
+          ALTER INDEX uq_role_privilege_assignment_active RENAME TO uq_role_capability_grant_assignment_active;
+
+- changeSet:
+    id: 0009-2-reattach-uuid-v7-triggers
+    author: copilot
+    dbms: postgresql
+    changes:
+    - sql:
+        splitStatements: false
+        sql: |
+          -- Re-run the generic trigger-attachment helpers (idempotent: DROP TRIGGER IF
+          -- EXISTS + CREATE) against the new table names, then drop the stale triggers
+          -- left behind under the old table-name-derived identifiers.
+          SELECT tgf_attach_uuid_v7_trigger('role_capability_grant');
+          SELECT tgf_attach_uuid_v7_trigger('role_capability_grant_assignment');
+          SELECT tgf_attach_uuid_v7_guard_trigger('role_capability_grant');
+          SELECT tgf_attach_uuid_v7_guard_trigger('role_capability_grant_assignment');
+
+          DROP TRIGGER IF EXISTS trg_privilege_assign_id ON role_capability_grant;
+          DROP TRIGGER IF EXISTS trg_privilege_reject_non_uuid_v7 ON role_capability_grant;
+          DROP TRIGGER IF EXISTS trg_role_privilege_assignment_assign_id ON role_capability_grant_assignment;
+          DROP TRIGGER IF EXISTS trg_role_privilege_assignment_reject_non_uuid_v7 ON role_capability_grant_assignment;
+
+- changeSet:
+    id: 0009-3-rename-append-only-audit-trigger
+    author: copilot
+    dbms: postgresql
+    changes:
+    - sql:
+        splitStatements: false
+        sql: |
+          CREATE OR REPLACE FUNCTION tgf_reject_role_capability_grant_change_audit_mutation()
+          RETURNS TRIGGER AS $$
+          BEGIN
+              RAISE EXCEPTION 'role_capability_grant_change_audit is append-only'
+                  USING ERRCODE = 'check_violation';
+          END;
+          $$ LANGUAGE plpgsql;
+
+          DROP TRIGGER IF EXISTS trg_privilege_change_audit_append_only ON role_capability_grant_change_audit;
+          DROP TRIGGER IF EXISTS trg_role_capability_grant_change_audit_append_only ON role_capability_grant_change_audit;
+          CREATE TRIGGER trg_role_capability_grant_change_audit_append_only
+          BEFORE UPDATE OR DELETE OR TRUNCATE ON role_capability_grant_change_audit
+          FOR EACH STATEMENT
+          EXECUTE FUNCTION tgf_reject_role_capability_grant_change_audit_mutation();
+
+          -- Stale function from the pre-rename trigger; no longer referenced.
+          DROP FUNCTION IF EXISTS tgf_reject_privilege_change_audit_mutation();
+
+          -- id sequences for the renamed uuid_v7 assign-id triggers were re-created above
+          -- under the tgf_attach_uuid_v7_trigger()/tgf_attach_uuid_v7_guard_trigger() helpers,
+          -- which are generic (parameterized by table name) and required no changes themselves.

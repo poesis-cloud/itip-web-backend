@@ -1,6 +1,6 @@
 # PROJECT_BRIEF.md — itip-web-backend
 
-> Last updated: 2025-07 | Sprint 0 | Status: Scaffolded
+> Last updated: 2026-08 | Authorization extension | Status: In progress
 
 ## 1. Project Overview
 
@@ -111,19 +111,25 @@ ITIP operationalises GSM-governed IT governance for enterprises. The backend:
 - Helm chart with dev/preprod/prod environment value files.
 - CI (`ci.yaml`) and CD (`cd.yaml`) workflows in place.
 - `Makefile` with `dev-up` / `dev-down` / `dev-check` / `prod-deploy` targets.
+- JWT authentication and persisted account, role, role-capability-grant, and assignment
+  foundations.
+- Capability, policy, and role-capability-grant model: capabilities identify protected resource
+  operations; policies constrain applicability; role-capability-grants bind capabilities and
+  policies to roles.
+- Transactional role-capability-grant creation service (`RoleCapabilityGrantService`) with
+  append-only change-audit recording.
 
 **What does not work yet:**
 
-- No controllers or service implementations.
 - No caching configuration.
-- No integration with `sie-definition-manager` or `sie-definition-blackboard-manager`.
+- No integration with `sie-definition-blackboard-manager`.
+- No ITIP resource resolvers or role-capability-grant administration endpoints.
 
-**What's next (Sprint 1):**
+**What's next:**
 
-- BFF skeleton: appraisal, framework, gsm-query controllers + service stubs.
-- Tenant-aware cache configuration (Caffeine for dev).
-- Health/readiness actuator endpoints.
-- JaCoCo baseline >=95%.
+- Expose secured role-capability-grant administration endpoints before frontend integration.
+- Add ITIP resource resolvers as protected resource types are introduced.
+- Integrate `sie-definition-blackboard-manager` for collaborative definition sourcing.
 
 ## 9. Security Rules
 

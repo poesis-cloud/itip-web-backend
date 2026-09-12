@@ -7,7 +7,6 @@ import jakarta.persistence.ForeignKey;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
@@ -20,16 +19,17 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
 @Entity
-@Table(name = "role_privilege_assignment")
+@Table(name = "role_capability_grant_assignment")
 @Getter
 @Setter
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class RolePrivilegeAssignment {
+public class RoleCapabilityGrantAssignment {
 
   @Id
+  @GenerateUuidV7
   @EqualsAndHashCode.Include
   @Column(name = "id", nullable = false, updatable = false)
   private UUID id;
@@ -38,21 +38,21 @@ public class RolePrivilegeAssignment {
   @JoinColumn(
       name = "role_id",
       nullable = false,
-      foreignKey = @ForeignKey(name = "fk_role_privilege_assignment_role"))
+      foreignKey = @ForeignKey(name = "fk_role_capability_grant_assignment_role"))
   private Role role;
 
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(
-      name = "privilege_id",
+      name = "role_capability_grant_id",
       nullable = false,
-      foreignKey = @ForeignKey(name = "fk_role_privilege_assignment_privilege"))
-  private Privilege privilege;
+      foreignKey = @ForeignKey(name = "fk_role_capability_grant_assignment_grant"))
+  private RoleCapabilityGrant roleCapabilityGrant;
 
   @ManyToOne(fetch = FetchType.LAZY, optional = true)
   @JoinColumn(
       name = "assigned_by",
       nullable = true,
-      foreignKey = @ForeignKey(name = "fk_role_privilege_assignment_assigned_by"))
+      foreignKey = @ForeignKey(name = "fk_role_capability_grant_assignment_assigned_by"))
   private Account assignedBy;
 
   @CreationTimestamp
@@ -61,11 +61,4 @@ public class RolePrivilegeAssignment {
 
   @Column(name = "revoked_at", nullable = true)
   private Instant unassignedAt;
-
-  @PrePersist
-  void assignUuidV7IfMissing() {
-    if (id == null) {
-      id = UuidV7Generator.generate();
-    }
-  }
 }

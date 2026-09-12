@@ -17,8 +17,11 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
       FROM Account a
       LEFT JOIN FETCH a.accountRoleAssignments ara
       LEFT JOIN FETCH ara.role r
-      LEFT JOIN FETCH r.rolePrivilegeAssignments rpa
-      LEFT JOIN FETCH rpa.privilege p
+      LEFT JOIN FETCH r.roleCapabilityGrantAssignments rcga
+      LEFT JOIN FETCH rcga.roleCapabilityGrant g
+      LEFT JOIN FETCH g.capability c
+      LEFT JOIN FETCH c.policies
+      LEFT JOIN FETCH g.policies
       WHERE a.email = :email
         AND (
           ara IS NULL
@@ -35,14 +38,14 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
           ara IS NULL
           OR ara.unassignedAt IS NOT NULL
           OR (ara.expiresAt IS NOT NULL AND ara.expiresAt <= CURRENT_TIMESTAMP)
-          OR (rpa IS NULL OR rpa.unassignedAt IS NULL)
+          OR (rcga IS NULL OR rcga.unassignedAt IS NULL)
           OR NOT EXISTS (
             SELECT 1
-            FROM RolePrivilegeAssignment rpaActive
-            WHERE rpaActive.role = ara.role
-              AND rpaActive.unassignedAt IS NULL
+            FROM RoleCapabilityGrantAssignment rcgaActive
+            WHERE rcgaActive.role = ara.role
+              AND rcgaActive.unassignedAt IS NULL
           )
         )
       """)
-  Optional<Account> findByEmailWithRolesAndPrivileges(@Param("email") String email);
+  Optional<Account> findByEmailWithRolesAndCapabilities(@Param("email") String email);
 }

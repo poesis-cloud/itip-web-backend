@@ -18,8 +18,17 @@ spring:
   liquibase:
     enabled: true
     change-log: classpath:db/changelog/db.changelog-master.yaml
+    # Seed changesets are tagged "dev"; any other context leaves them out.
+    # Not named LIQUIBASE_* because Liquibase reserves that prefix.
+    contexts: ${ITIP_LIQUIBASE_CONTEXTS:prod}
 
 itip:
+  authorization:
+    batch-timeout-ms: ${ITIP_AUTHORIZATION_BATCH_TIMEOUT_MS:8000}
+  defman:
+    base-url: ${ITIP_DEFMAN_BASE_URL:}
+    connect-timeout-ms: ${ITIP_DEFMAN_CONNECT_TIMEOUT_MS:5000}
+    read-timeout-ms: ${ITIP_DEFMAN_READ_TIMEOUT_MS:10000}
   security:
     permit-all: ${ITIP_SECURITY_PERMIT_ALL:false}
     jwt:

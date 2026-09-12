@@ -2,19 +2,26 @@ package cloud.poesis.itip.web.backend.auth.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import cloud.poesis.itip.web.backend.auth.entity.Account;
 import cloud.poesis.itip.web.backend.auth.entity.AccountRoleAssignment;
-import cloud.poesis.itip.web.backend.auth.entity.Privilege;
+import cloud.poesis.itip.web.backend.auth.entity.Capability;
+import cloud.poesis.itip.web.backend.auth.entity.CapabilityOperation;
+import cloud.poesis.itip.web.backend.auth.entity.CapabilityResourceOrigin;
+import cloud.poesis.itip.web.backend.auth.entity.CapabilityStatus;
 import cloud.poesis.itip.web.backend.auth.entity.Role;
-import cloud.poesis.itip.web.backend.auth.entity.RolePrivilegeAssignment;
+import cloud.poesis.itip.web.backend.auth.entity.RoleCapabilityGrant;
+import cloud.poesis.itip.web.backend.auth.entity.RoleCapabilityGrantAssignment;
 import cloud.poesis.itip.web.backend.auth.repository.AccountRepository;
 import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -26,20 +33,70 @@ class AccountServiceTest {
 
   @Mock private AccountRepository accountRepository;
 
+  @Mock private RoleService roleService;
+
+  @Mock private AccountRoleAssignmentService accountRoleAssignmentService;
+
   @InjectMocks private AccountService accountService;
 
   @Test
-  void loadUserByUsernameShouldReturnUserDetailsWithOnlyActiveAuthorities() {
-    Privilege activePrivilege = Privilege.builder().id(UUID.randomUUID()).code("READ_USER").build();
-    RolePrivilegeAssignment activeRolePrivilegeAssignment =
-        RolePrivilegeAssignment.builder().id(UUID.randomUUID()).privilege(activePrivilege).build();
+  @SuppressWarnings("null")
+  void createShouldSaveAccountThenAssignResolvedDefaultRole() {
+    Account account = Account.builder().email("new@itip.local").build();
+    Account savedAccount = Account.builder().id(UUID.randomUUID()).email("new@itip.local").build();
+    Role defaultRole =
+        Role.builder().id(UUID.randomUUID()).name(RoleService.DEFAULT_ROLE_NAME).build();
+    when(accountRepository.save(account)).thenReturn(savedAccount);
+    when(roleService.requireDefaultRole()).thenReturn(defaultRole);
 
-    Privilege revokedPrivilege =
-        Privilege.builder().id(UUID.randomUUID()).code("DELETE_USER").build();
-    RolePrivilegeAssignment revokedRolePrivilegeAssignment =
-        RolePrivilegeAssignment.builder()
+    Account created = accountService.create(account);
+
+    assertThat(created).isSameAs(savedAccount);
+    InOrder inOrder = inOrder(accountRepository, roleService, accountRoleAssignmentService);
+    inOrder.verify(accountRepository).save(account);
+    inOrder.verify(roleService).requireDefaultRole();
+    inOrder.verify(accountRoleAssignmentService).assign(savedAccount, defaultRole);
+  }
+
+  @Test
+  @SuppressWarnings("null")
+  void createShouldPropagateFailureWhenDefaultRoleIsMissing() {
+    Account account = Account.builder().email("new@itip.local").build();
+    Account savedAccount = Account.builder().id(UUID.randomUUID()).email("new@itip.local").build();
+    when(accountRepository.save(account)).thenReturn(savedAccount);
+    when(roleService.requireDefaultRole())
+        .thenThrow(new IllegalStateException("Default role ITIP_USER is not configured"));
+
+    assertThatThrownBy(() -> accountService.create(account))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessage("Default role ITIP_USER is not configured");
+
+    verifyNoInteractions(accountRoleAssignmentService);
+  }
+
+  @Test
+  void loadUserByUsernameShouldReturnUserDetailsWithOnlyActiveAuthorities() {
+    RoleCapabilityGrant activeGrant = allowGrant("ACCOUNT", CapabilityOperation.READ);
+    RoleCapabilityGrantAssignment activeGrantAssignment =
+        RoleCapabilityGrantAssignment.builder()
             .id(UUID.randomUUID())
-            .privilege(revokedPrivilege)
+            .roleCapabilityGrant(activeGrant)
+            .build();
+
+    RoleCapabilityGrant disabledCapabilityGrant =
+        allowGrant("ACCOUNT", CapabilityOperation.DISABLE);
+    disabledCapabilityGrant.getCapability().setStatus(CapabilityStatus.DISABLED);
+    RoleCapabilityGrantAssignment disabledCapabilityGrantAssignment =
+        RoleCapabilityGrantAssignment.builder()
+            .id(UUID.randomUUID())
+            .roleCapabilityGrant(disabledCapabilityGrant)
+            .build();
+
+    RoleCapabilityGrant revokedGrant = allowGrant("CAPABILITY", CapabilityOperation.CREATE);
+    RoleCapabilityGrantAssignment revokedGrantAssignment =
+        RoleCapabilityGrantAssignment.builder()
+            .id(UUID.randomUUID())
+            .roleCapabilityGrant(revokedGrant)
             .unassignedAt(Instant.now())
             .build();
 
@@ -47,8 +104,11 @@ class AccountServiceTest {
         Role.builder()
             .id(UUID.randomUUID())
             .name("ADMIN")
-            .rolePrivilegeAssignments(
-                Set.of(activeRolePrivilegeAssignment, revokedRolePrivilegeAssignment))
+            .roleCapabilityGrantAssignments(
+                Set.of(
+                    activeGrantAssignment,
+                    disabledCapabilityGrantAssignment,
+                    revokedGrantAssignment))
             .build();
 
     AccountRoleAssignment activeRoleAssignment =
@@ -70,7 +130,7 @@ class AccountServiceTest {
             .accountRoleAssignments(Set.of(activeRoleAssignment, expiredRoleAssignment))
             .build();
 
-    when(accountRepository.findByEmailWithRolesAndPrivileges("john.doe@itip.local"))
+    when(accountRepository.findByEmailWithRolesAndCapabilities("john.doe@itip.local"))
         .thenReturn(java.util.Optional.of(account));
 
     UserDetails userDetails = accountService.loadUserByUsername("john.doe@itip.local");
@@ -80,12 +140,12 @@ class AccountServiceTest {
     assertThat(userDetails.isEnabled()).isTrue();
     assertThat(userDetails.getAuthorities())
         .extracting("authority")
-        .containsExactlyInAnyOrder("READ_USER");
+        .containsExactlyInAnyOrder("ITIP:ACCOUNT:READ");
   }
 
   @Test
   void loadUserByUsernameShouldThrowWhenAccountNotFound() {
-    when(accountRepository.findByEmailWithRolesAndPrivileges("missing@itip.local"))
+    when(accountRepository.findByEmailWithRolesAndCapabilities("missing@itip.local"))
         .thenReturn(java.util.Optional.empty());
 
     assertThatThrownBy(() -> accountService.loadUserByUsername("missing@itip.local"))
@@ -124,7 +184,7 @@ class AccountServiceTest {
             .accountRoleAssignments(null)
             .build();
 
-    when(accountRepository.findByEmailWithRolesAndPrivileges("disabled@itip.local"))
+    when(accountRepository.findByEmailWithRolesAndCapabilities("disabled@itip.local"))
         .thenReturn(java.util.Optional.of(account));
 
     UserDetails userDetails = accountService.loadUserByUsername("disabled@itip.local");
@@ -135,50 +195,50 @@ class AccountServiceTest {
   }
 
   @Test
-  void loadUserByUsernameShouldIgnoreInvalidAuthoritiesAndKeepOnlyValidPrivilegeCodes() {
-    Privilege validPrivilege = Privilege.builder().id(UUID.randomUUID()).code("READ_USER").build();
-    Privilege nullCodePrivilege = Privilege.builder().id(UUID.randomUUID()).code(null).build();
+  void loadUserByUsernameShouldIgnoreIncompleteGrantsAndKeepValidAuthorities() {
+    RoleCapabilityGrant validGrant = allowGrant("ACCOUNT", CapabilityOperation.READ);
+    RoleCapabilityGrant incompleteGrant = allowGrant(null, CapabilityOperation.READ);
 
-    Role roleWithNullPrivilegeAssignments =
+    Role roleWithNullGrantAssignments =
         Role.builder()
             .id(UUID.randomUUID())
-            .name("NULL_PRIV_ASSIGNMENTS")
-            .rolePrivilegeAssignments(null)
+            .name("NULL_GRANT_ASSIGNMENTS")
+            .roleCapabilityGrantAssignments(null)
             .build();
 
-    Role roleWithNullPrivilege =
+    Role roleWithNullGrant =
         Role.builder()
             .id(UUID.randomUUID())
-            .name("NULL_PRIVILEGE")
-            .rolePrivilegeAssignments(
+            .name("NULL_GRANT")
+            .roleCapabilityGrantAssignments(
                 Set.of(
-                    RolePrivilegeAssignment.builder()
+                    RoleCapabilityGrantAssignment.builder()
                         .id(UUID.randomUUID())
-                        .privilege(null)
+                        .roleCapabilityGrant(null)
                         .build()))
             .build();
 
-    Role roleWithNullPrivilegeCode =
+    Role roleWithIncompleteGrant =
         Role.builder()
             .id(UUID.randomUUID())
-            .name("NULL_PRIVILEGE_CODE")
-            .rolePrivilegeAssignments(
+            .name("NULL_GRANT_CODE")
+            .roleCapabilityGrantAssignments(
                 Set.of(
-                    RolePrivilegeAssignment.builder()
+                    RoleCapabilityGrantAssignment.builder()
                         .id(UUID.randomUUID())
-                        .privilege(nullCodePrivilege)
+                        .roleCapabilityGrant(incompleteGrant)
                         .build()))
             .build();
 
-    Role roleWithValidPrivilege =
+    Role roleWithValidGrant =
         Role.builder()
             .id(UUID.randomUUID())
             .name("VALID")
-            .rolePrivilegeAssignments(
+            .roleCapabilityGrantAssignments(
                 Set.of(
-                    RolePrivilegeAssignment.builder()
+                    RoleCapabilityGrantAssignment.builder()
                         .id(UUID.randomUUID())
-                        .privilege(validPrivilege)
+                        .roleCapabilityGrant(validGrant)
                         .build()))
             .build();
 
@@ -193,44 +253,44 @@ class AccountServiceTest {
                     AccountRoleAssignment.builder().id(UUID.randomUUID()).role(null).build(),
                     AccountRoleAssignment.builder()
                         .id(UUID.randomUUID())
-                        .role(roleWithNullPrivilegeAssignments)
+                        .role(roleWithNullGrantAssignments)
                         .build(),
                     AccountRoleAssignment.builder()
                         .id(UUID.randomUUID())
-                        .role(roleWithNullPrivilege)
+                        .role(roleWithNullGrant)
                         .build(),
                     AccountRoleAssignment.builder()
                         .id(UUID.randomUUID())
-                        .role(roleWithNullPrivilegeCode)
+                        .role(roleWithIncompleteGrant)
                         .build(),
                     AccountRoleAssignment.builder()
                         .id(UUID.randomUUID())
-                        .role(roleWithValidPrivilege)
+                        .role(roleWithValidGrant)
                         .build()))
             .build();
 
-    when(accountRepository.findByEmailWithRolesAndPrivileges("mixed@itip.local"))
+    when(accountRepository.findByEmailWithRolesAndCapabilities("mixed@itip.local"))
         .thenReturn(java.util.Optional.of(account));
 
     UserDetails userDetails = accountService.loadUserByUsername("mixed@itip.local");
 
     assertThat(userDetails.getAuthorities())
         .extracting("authority")
-        .containsExactlyInAnyOrder("READ_USER");
+        .containsExactlyInAnyOrder("ITIP:ACCOUNT:READ");
   }
 
   @Test
   void loadUserByUsernameShouldIgnoreRevokedRoleAssignments() {
-    Privilege privilege = Privilege.builder().id(UUID.randomUUID()).code("READ_USER").build();
+    RoleCapabilityGrant grant = allowGrant("ACCOUNT", CapabilityOperation.READ);
     Role role =
         Role.builder()
             .id(UUID.randomUUID())
             .name("ADMIN")
-            .rolePrivilegeAssignments(
+            .roleCapabilityGrantAssignments(
                 Set.of(
-                    RolePrivilegeAssignment.builder()
+                    RoleCapabilityGrantAssignment.builder()
                         .id(UUID.randomUUID())
-                        .privilege(privilege)
+                        .roleCapabilityGrant(grant)
                         .build()))
             .build();
 
@@ -249,7 +309,7 @@ class AccountServiceTest {
                         .build()))
             .build();
 
-    when(accountRepository.findByEmailWithRolesAndPrivileges("revoked@itip.local"))
+    when(accountRepository.findByEmailWithRolesAndCapabilities("revoked@itip.local"))
         .thenReturn(java.util.Optional.of(account));
 
     UserDetails userDetails = accountService.loadUserByUsername("revoked@itip.local");
@@ -259,16 +319,16 @@ class AccountServiceTest {
 
   @Test
   void loadUserByUsernameShouldIgnoreExpiredRoleAssignmentsEvenWhenNotRevoked() {
-    Privilege privilege = Privilege.builder().id(UUID.randomUUID()).code("READ_USER").build();
+    RoleCapabilityGrant grant = allowGrant("ACCOUNT", CapabilityOperation.READ);
     Role role =
         Role.builder()
             .id(UUID.randomUUID())
             .name("EXPIRED_ROLE")
-            .rolePrivilegeAssignments(
+            .roleCapabilityGrantAssignments(
                 Set.of(
-                    RolePrivilegeAssignment.builder()
+                    RoleCapabilityGrantAssignment.builder()
                         .id(UUID.randomUUID())
-                        .privilege(privilege)
+                        .roleCapabilityGrant(grant)
                         .build()))
             .build();
 
@@ -287,7 +347,7 @@ class AccountServiceTest {
                         .build()))
             .build();
 
-    when(accountRepository.findByEmailWithRolesAndPrivileges("expired@itip.local"))
+    when(accountRepository.findByEmailWithRolesAndCapabilities("expired@itip.local"))
         .thenReturn(java.util.Optional.of(account));
 
     UserDetails userDetails = accountService.loadUserByUsername("expired@itip.local");
@@ -297,16 +357,16 @@ class AccountServiceTest {
 
   @Test
   void loadUserByUsernameShouldAcceptFutureExpiringRoleAssignments() {
-    Privilege privilege = Privilege.builder().id(UUID.randomUUID()).code("READ_USER").build();
+    RoleCapabilityGrant grant = allowGrant("ACCOUNT", CapabilityOperation.READ);
     Role role =
         Role.builder()
             .id(UUID.randomUUID())
             .name("FUTURE_ROLE")
-            .rolePrivilegeAssignments(
+            .roleCapabilityGrantAssignments(
                 Set.of(
-                    RolePrivilegeAssignment.builder()
+                    RoleCapabilityGrantAssignment.builder()
                         .id(UUID.randomUUID())
-                        .privilege(privilege)
+                        .roleCapabilityGrant(grant)
                         .build()))
             .build();
 
@@ -325,13 +385,80 @@ class AccountServiceTest {
                         .build()))
             .build();
 
-    when(accountRepository.findByEmailWithRolesAndPrivileges("future@itip.local"))
+    when(accountRepository.findByEmailWithRolesAndCapabilities("future@itip.local"))
         .thenReturn(java.util.Optional.of(account));
 
     UserDetails userDetails = accountService.loadUserByUsername("future@itip.local");
 
     assertThat(userDetails.getAuthorities())
         .extracting("authority")
-        .containsExactlyInAnyOrder("READ_USER");
+        .containsExactlyInAnyOrder("ITIP:ACCOUNT:READ");
+  }
+
+  @Test
+  void describeAccountShouldIncludeOnlyActiveRolesAndEnabledCapabilityGrants() {
+    RoleCapabilityGrant activeGrant = allowGrant("ACCOUNT", CapabilityOperation.READ);
+    RoleCapabilityGrant disabledCapabilityGrant =
+        allowGrant("ACCOUNT", CapabilityOperation.DISABLE);
+    disabledCapabilityGrant.getCapability().setStatus(CapabilityStatus.DISABLED);
+
+    Role activeRole =
+        Role.builder()
+            .id(UUID.randomUUID())
+            .name("ADMIN")
+            .roleCapabilityGrantAssignments(
+                Set.of(
+                    RoleCapabilityGrantAssignment.builder()
+                        .id(UUID.randomUUID())
+                        .roleCapabilityGrant(activeGrant)
+                        .build(),
+                    RoleCapabilityGrantAssignment.builder()
+                        .id(UUID.randomUUID())
+                        .roleCapabilityGrant(disabledCapabilityGrant)
+                        .build()))
+            .build();
+    Role revokedRole = Role.builder().id(UUID.randomUUID()).name("REVOKED").build();
+    Role expiredRole = Role.builder().id(UUID.randomUUID()).name("EXPIRED").build();
+    Account account =
+        Account.builder()
+            .id(UUID.randomUUID())
+            .email("profile@itip.local")
+            .fullName("Profile Account")
+            .accountRoleAssignments(
+                Set.of(
+                    AccountRoleAssignment.builder().id(UUID.randomUUID()).role(activeRole).build(),
+                    AccountRoleAssignment.builder()
+                        .id(UUID.randomUUID())
+                        .role(revokedRole)
+                        .unassignedAt(Instant.now())
+                        .build(),
+                    AccountRoleAssignment.builder()
+                        .id(UUID.randomUUID())
+                        .role(expiredRole)
+                        .expiresAt(Instant.now().minusSeconds(1))
+                        .build()))
+            .build();
+    when(accountRepository.findByEmailWithRolesAndCapabilities("profile@itip.local"))
+        .thenReturn(java.util.Optional.of(account));
+
+    var profile = accountService.describeAccount("profile@itip.local");
+
+    assertThat(profile.id()).isEqualTo(account.getId());
+    assertThat(profile.email()).isEqualTo("profile@itip.local");
+    assertThat(profile.fullName()).isEqualTo("Profile Account");
+    assertThat(profile.roles()).containsExactly("ADMIN");
+    assertThat(profile.capabilities()).containsExactly("ITIP:ACCOUNT:READ");
+  }
+
+  private static RoleCapabilityGrant allowGrant(String resource, CapabilityOperation operation) {
+    Capability capability =
+        Capability.builder()
+            .id(UUID.randomUUID())
+            .resourceOrigin(CapabilityResourceOrigin.ITIP)
+            .resource(resource)
+            .operation(operation)
+            .status(CapabilityStatus.ACTIVE)
+            .build();
+    return RoleCapabilityGrant.builder().id(UUID.randomUUID()).capability(capability).build();
   }
 }

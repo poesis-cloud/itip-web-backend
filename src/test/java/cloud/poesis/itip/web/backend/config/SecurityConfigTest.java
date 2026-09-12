@@ -56,6 +56,21 @@ class SecurityConfigTest {
   }
 
   @Test
+  void meEndpointShouldRequireAuthentication() throws Exception {
+    mockMvc.perform(get("/api/auth/me")).andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void checkManyEndpointShouldRequireAuthentication() throws Exception {
+    mockMvc
+        .perform(
+            post("/api/authorization/check-many")
+                .contentType("application/json")
+                .content("{\"checks\":[]}"))
+        .andExpect(status().isUnauthorized());
+  }
+
+  @Test
   void nonAuthEndpointsShouldRequireAuthentication() throws Exception {
     mockMvc
         .perform(get("/api/test-protected-probe"))

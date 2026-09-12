@@ -1,0 +1,21 @@
+databaseChangeLog:
+- changeSet:
+    id: 0007-1-enforce-privilege-change-audit-append-only
+    author: copilot
+    dbms: postgresql
+    changes:
+    - sql:
+        splitStatements: false
+        sql: |
+          CREATE OR REPLACE FUNCTION tgf_reject_privilege_change_audit_mutation() RETURNS TRIGGER AS $$
+          BEGIN
+              RAISE EXCEPTION 'privilege_change_audit is append-only'
+                  USING ERRCODE = 'check_violation';
+          END;
+          $$ LANGUAGE plpgsql;
+
+          DROP TRIGGER IF EXISTS trg_privilege_change_audit_append_only ON privilege_change_audit;
+          CREATE TRIGGER trg_privilege_change_audit_append_only
+          BEFORE UPDATE OR DELETE OR TRUNCATE ON privilege_change_audit
+          FOR EACH STATEMENT
+          EXECUTE FUNCTION tgf_reject_privilege_change_audit_mutation();

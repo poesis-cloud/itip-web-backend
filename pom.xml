@@ -50,6 +50,16 @@
       <artifactId>spring-boot-starter-security</artifactId>
     </dependency>
     <dependency>
+      <groupId>dev.cel</groupId>
+      <artifactId>compiler</artifactId>
+      <version>0.12.0</version>
+    </dependency>
+    <dependency>
+      <groupId>dev.cel</groupId>
+      <artifactId>runtime</artifactId>
+      <version>0.12.0</version>
+    </dependency>
+    <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
     </dependency>
@@ -158,7 +168,7 @@
           <url>${env.LIQUIBASE_URL}</url>
           <username>${env.LIQUIBASE_USERNAME}</username>
           <password>${env.LIQUIBASE_PASSWORD}</password>
-          <diffTypes>tables,columns,sequences,primaryKeys,uniqueConstraints,indexes</diffTypes>
+          <diffTypes>tables,columns,sequences,primaryKeys,foreignKeys,uniqueConstraints,indexes</diffTypes>
           <diffChangeLogFile>${project.build.directory}/generated-liquibase/db.changelog-diff-${maven.build.timestamp}.yaml</diffChangeLogFile>
           <outputChangeLogFile>${project.build.directory}/generated-liquibase/db.changelog-output-${maven.build.timestamp}.yaml</outputChangeLogFile>
           <outputDefaultCatalog>false</outputDefaultCatalog>

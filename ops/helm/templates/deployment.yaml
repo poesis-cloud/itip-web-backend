@@ -36,8 +36,20 @@ spec:
             - name: SPRING_PROFILES_ACTIVE
               value: {{ .Values.env.SPRING_PROFILES_ACTIVE | quote }}
             {{- end }}
+            {{- if .Values.env.ITIP_LIQUIBASE_CONTEXTS }}
+            - name: ITIP_LIQUIBASE_CONTEXTS
+              value: {{ .Values.env.ITIP_LIQUIBASE_CONTEXTS | quote }}
+            {{- end }}
             - name: ITIP_SECURITY_PERMIT_ALL
               value: {{ .Values.env.ITIP_SECURITY_PERMIT_ALL | quote }}
+            - name: ITIP_DEFMAN_BASE_URL
+              value: {{ .Values.env.ITIP_DEFMAN_BASE_URL | quote }}
+            - name: ITIP_DEFMAN_CONNECT_TIMEOUT_MS
+              value: {{ .Values.env.ITIP_DEFMAN_CONNECT_TIMEOUT_MS | default 5000 | quote }}
+            - name: ITIP_DEFMAN_READ_TIMEOUT_MS
+              value: {{ .Values.env.ITIP_DEFMAN_READ_TIMEOUT_MS | default 10000 | quote }}
+            - name: ITIP_AUTHORIZATION_BATCH_TIMEOUT_MS
+              value: {{ .Values.env.ITIP_AUTHORIZATION_BATCH_TIMEOUT_MS | default 8000 | quote }}
             - name: ITIP_SECURITY_JWT_EXPIRATION_MS
               value: {{ .Values.env.ITIP_SECURITY_JWT_EXPIRATION_MS | quote }}
             - name: ITIP_SECURITY_JWT_SECRET

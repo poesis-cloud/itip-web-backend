@@ -1,0 +1,172 @@
+# Structure was generated with `mvn liquibase:diff` from the immutable 0000-0004 baseline.
+# The ordered SQL changesets below supply the data backfill and trigger work that Liquibase cannot infer.
+databaseChangeLog:
+- changeSet:
+    id: 0005-1-create-capability-policy-structure
+    author: copilot
+    changes:
+    - createTable:
+        tableName: capability
+        columns:
+        - column: {name: id, type: UUID, constraints: {nullable: false, primaryKey: true, primaryKeyName: capabilityPK}}
+        - column: {name: created_at, type: TIMESTAMP(6) WITH TIME ZONE, constraints: {nullable: false}}
+        - column: {name: created_by, type: VARCHAR(255), constraints: {nullable: false}}
+        - column: {name: enabled, type: BOOLEAN, defaultValueBoolean: true, constraints: {nullable: false}}
+        - column: {name: operation, type: VARCHAR(255), constraints: {nullable: false}}
+        - column: {name: resource, type: VARCHAR(255), constraints: {nullable: false}}
+        - column: {name: resource_origin, type: VARCHAR(255), constraints: {nullable: false}}
+        - column: {name: system_managed, type: BOOLEAN, defaultValueBoolean: false, constraints: {nullable: false}}
+        - column: {name: updated_at, type: TIMESTAMP(6) WITH TIME ZONE, constraints: {nullable: false}}
+        - column: {name: updated_by, type: VARCHAR(255), constraints: {nullable: false}}
+        - column: {name: version, type: BIGINT, constraints: {nullable: false}}
+    - createTable:
+        tableName: policy
+        columns:
+        - column: {name: id, type: UUID, constraints: {nullable: false, primaryKey: true, primaryKeyName: policyPK}}
+        - column: {name: condition_expression, type: TEXT, constraints: {nullable: false}}
+        - column: {name: created_at, type: TIMESTAMP(6) WITH TIME ZONE, constraints: {nullable: false}}
+        - column: {name: created_by, type: VARCHAR(255), constraints: {nullable: false}}
+        - column: {name: updated_at, type: TIMESTAMP(6) WITH TIME ZONE, constraints: {nullable: false}}
+        - column: {name: updated_by, type: VARCHAR(255), constraints: {nullable: false}}
+        - column: {name: version, type: BIGINT, constraints: {nullable: false}}
+    - createTable:
+        tableName: capability_policy
+        columns:
+        - column: {name: capability_id, type: UUID, constraints: {nullable: false, primaryKey: true, primaryKeyName: capability_policyPK}}
+        - column: {name: policy_id, type: UUID, constraints: {nullable: false, primaryKey: true, primaryKeyName: capability_policyPK}}
+    - createTable:
+        tableName: privilege_policy
+        columns:
+        - column: {name: privilege_id, type: UUID, constraints: {nullable: false, primaryKey: true, primaryKeyName: privilege_policyPK}}
+        - column: {name: policy_id, type: UUID, constraints: {nullable: false, primaryKey: true, primaryKeyName: privilege_policyPK}}
+    - createTable:
+        tableName: privilege_change_audit
+        columns:
+        - column: {name: id, type: UUID, constraints: {nullable: false, primaryKey: true, primaryKeyName: privilege_change_auditPK}}
+        - column: {name: action_at, type: TIMESTAMP(6) WITH TIME ZONE, constraints: {nullable: false}}
+        - column: {name: action_by, type: VARCHAR(255), constraints: {nullable: false}}
+        - column: {name: action_type, type: VARCHAR(255), constraints: {nullable: false}}
+        - column: {name: new_state, type: TEXT, constraints: {nullable: false}}
+        - column: {name: previous_state, type: TEXT, constraints: {nullable: false}}
+        - column: {name: privilege_version, type: BIGINT, constraints: {nullable: false}}
+        - column: {name: privilege_id, type: UUID, constraints: {nullable: false}}
+    - addColumn:
+        tableName: privilege
+        columns:
+        - column: {name: capability_id, type: UUID}
+        - column: {name: created_at, type: TIMESTAMP(6) WITH TIME ZONE}
+        - column: {name: created_by, type: VARCHAR(255)}
+        - column: {name: updated_at, type: TIMESTAMP(6) WITH TIME ZONE}
+        - column: {name: updated_by, type: VARCHAR(255)}
+        - column: {name: version, type: BIGINT}
+    - addColumn:
+        tableName: role
+        columns:
+        - column: {name: system_managed, type: BOOLEAN, defaultValueBoolean: false, constraints: {nullable: false}}
+    - addUniqueConstraint: {tableName: capability, columnNames: "resource_origin, resource, operation", constraintName: uq_capability_identity}
+
+- changeSet:
+    id: 0005-2-backfill-capabilities-and-default-role
+    author: copilot
+    dbms: postgresql
+    changes:
+    - sql:
+        splitStatements: false
+        sql: |
+          DO $$
+          DECLARE
+              invalid_codes text;
+          BEGIN
+              SELECT string_agg(code, ', ' ORDER BY code) INTO invalid_codes
+              FROM (
+                  SELECT code
+                  FROM privilege
+                  WHERE cardinality(string_to_array(code, ':')) <> 3
+                     OR split_part(code, ':', 1) NOT IN ('DEFMAN', 'ITIP', 'UI')
+                     OR split_part(code, ':', 2) = ''
+                     OR split_part(code, ':', 3) NOT IN ('CREATE', 'READ', 'UPDATE', 'SUBMIT', 'APPROVE', 'ACTIVATE', 'DISABLE', 'VIEW')
+                  ORDER BY code
+              ) invalid;
+              IF invalid_codes IS NOT NULL THEN
+                  RAISE EXCEPTION 'Capability migration failed: unmapped legacy privilege codes: %. Add an explicit business-approved mapping before migration.', invalid_codes;
+              END IF;
+          END
+          $$;
+
+          INSERT INTO capability (
+            id, resource_origin, resource, operation, enabled, system_managed,
+            version, created_by, updated_by, created_at, updated_at
+          )
+          SELECT uuid_v7(), split_part(code, ':', 1), split_part(code, ':', 2), split_part(code, ':', 3),
+                 true, true, 0, 'migration', 'migration', now(), now()
+          FROM privilege
+          ON CONFLICT (resource_origin, resource, operation) DO NOTHING;
+
+          UPDATE privilege p
+          SET capability_id = c.id,
+              version = 0,
+              created_by = 'migration',
+              updated_by = 'migration',
+              created_at = now(),
+              updated_at = now()
+          FROM capability c
+          WHERE c.resource_origin = split_part(p.code, ':', 1)
+            AND c.resource = split_part(p.code, ':', 2)
+            AND c.operation = split_part(p.code, ':', 3);
+
+          INSERT INTO role (id, name, system_managed, created_at, updated_at)
+          SELECT uuid_v7(), 'ITIP_USER', true, now(), now()
+          WHERE NOT EXISTS (SELECT 1 FROM role WHERE name = 'ITIP_USER');
+
+          UPDATE role SET system_managed = true WHERE name = 'ITIP_USER';
+
+          INSERT INTO account_role_assignment (id, account_id, role_id, assigned_at)
+          SELECT uuid_v7(), a.id, r.id, now()
+          FROM account a
+          CROSS JOIN role r
+          WHERE r.name = 'ITIP_USER'
+            AND NOT EXISTS (
+              SELECT 1
+              FROM account_role_assignment ara
+              WHERE ara.account_id = a.id
+                AND ara.role_id = r.id
+                AND ara.revoked_at IS NULL
+                AND (ara.expires_at IS NULL OR ara.expires_at > CURRENT_TIMESTAMP)
+            );
+
+- changeSet:
+    id: 0005-3-enforce-capability-relations
+    author: copilot
+    changes:
+    - addNotNullConstraint: {tableName: privilege, columnName: capability_id, columnDataType: UUID}
+    - addNotNullConstraint: {tableName: privilege, columnName: created_at, columnDataType: TIMESTAMP(6) WITH TIME ZONE}
+    - addNotNullConstraint: {tableName: privilege, columnName: created_by, columnDataType: VARCHAR(255)}
+    - addNotNullConstraint: {tableName: privilege, columnName: updated_at, columnDataType: TIMESTAMP(6) WITH TIME ZONE}
+    - addNotNullConstraint: {tableName: privilege, columnName: updated_by, columnDataType: VARCHAR(255)}
+    - addNotNullConstraint: {tableName: privilege, columnName: version, columnDataType: BIGINT}
+    - addForeignKeyConstraint: {baseTableName: capability_policy, baseColumnNames: capability_id, constraintName: fk_capability_policy_capability, referencedTableName: capability, referencedColumnNames: id}
+    - addForeignKeyConstraint: {baseTableName: capability_policy, baseColumnNames: policy_id, constraintName: fk_capability_policy_policy, referencedTableName: policy, referencedColumnNames: id}
+    - addForeignKeyConstraint: {baseTableName: privilege_policy, baseColumnNames: privilege_id, constraintName: fk_privilege_policy_privilege, referencedTableName: privilege, referencedColumnNames: id}
+    - addForeignKeyConstraint: {baseTableName: privilege_policy, baseColumnNames: policy_id, constraintName: fk_privilege_policy_policy, referencedTableName: policy, referencedColumnNames: id}
+    - addForeignKeyConstraint: {baseTableName: privilege, baseColumnNames: capability_id, constraintName: fk_privilege_capability, referencedTableName: capability, referencedColumnNames: id}
+    - addForeignKeyConstraint: {baseTableName: privilege_change_audit, baseColumnNames: privilege_id, constraintName: fk_privilege_change_audit_privilege, referencedTableName: privilege, referencedColumnNames: id}
+    - dropUniqueConstraint: {tableName: privilege, constraintName: UC_PRIVILEGECODE_COL}
+    - dropColumn: {tableName: privilege, columnName: code}
+
+- changeSet:
+    id: 0005-4-attach-uuid-v7-guards
+    author: copilot
+    dbms: postgresql
+    changes:
+    - sql:
+        splitStatements: false
+        sql: |
+          ALTER TABLE capability ALTER COLUMN id SET DEFAULT uuid_v7();
+          ALTER TABLE policy ALTER COLUMN id SET DEFAULT uuid_v7();
+          ALTER TABLE privilege_change_audit ALTER COLUMN id SET DEFAULT uuid_v7();
+          SELECT tgf_attach_uuid_v7_trigger('capability');
+          SELECT tgf_attach_uuid_v7_trigger('policy');
+          SELECT tgf_attach_uuid_v7_trigger('privilege_change_audit');
+          SELECT tgf_attach_uuid_v7_guard_trigger('capability');
+          SELECT tgf_attach_uuid_v7_guard_trigger('policy');
+          SELECT tgf_attach_uuid_v7_guard_trigger('privilege_change_audit');
