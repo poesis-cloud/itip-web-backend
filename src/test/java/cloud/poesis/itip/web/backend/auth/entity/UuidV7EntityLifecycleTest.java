@@ -3,14 +3,28 @@ package cloud.poesis.itip.web.backend.auth.entity;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 
+@DataJpaTest(
+    properties = {"spring.jpa.hibernate.ddl-auto=create-drop", "spring.liquibase.enabled=false"})
 class UuidV7EntityLifecycleTest {
 
-  @Test
-  void shouldGenerateUuidV7Identifiers() {
-    java.util.UUID id = UuidV7Generator.generate();
+  @Autowired private TestEntityManager entityManager;
 
-    assertThat(id.version()).isEqualTo(7);
-    assertThat(id.variant()).isEqualTo(2);
+  @Test
+  void shouldGenerateUuidV7IdentifiersForPersistedEntities() {
+    Account account =
+        entityManager.persistFlushFind(
+            Account.builder()
+                .email("uuid-v7@itip.local")
+                .passwordHash("hashed-password")
+                .enabled(true)
+                .build());
+
+    assertThat(account.getId()).isNotNull();
+    assertThat(account.getId().version()).isEqualTo(7);
+    assertThat(account.getId().variant()).isEqualTo(2);
   }
 }
